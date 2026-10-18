@@ -1,0 +1,250 @@
+---------------------------------------------------------------------
+CONSULTA: Orders
+Tipos de fecha, sin duplicados, revisión de fechas inconsistentes,
+días de entrega, días de retraso, bandera de entrega tarde, año y mes.
+---------------------------------------------------------------------
+let
+  Origen = Csv.Document(Web.Contents("https://iteso01-my.sharepoint.com/personal/jose_almendarez_iteso_mx/Documents/kaggle_data/olist_orders_dataset.csv"), [Delimiter = ",", Columns = 8, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(Origen, [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos", {{"order_id", type text}, {"customer_id", type text}, {"order_status", type text}, {"order_purchase_timestamp", type datetime}, {"order_approved_at", type datetime}, {"order_delivered_carrier_date", type datetime}, {"order_delivered_customer_date", type datetime}, {"order_estimated_delivery_date", type datetime}}, "es-MX"),
+  #"Columnas con nombre cambiado" = Table.RenameColumns(#"Tipo de columna cambiado", {{"customer_id", "order_customer_id"}}),
+  #"Sin duplicados" = Table.Distinct(#"Columnas con nombre cambiado", {"order_id"}),
+  FueraDeOrden = (posterior, anterior) => posterior <> null and anterior <> null and posterior < anterior,
+  #"Revision de fechas" = Table.AddColumn(#"Sin duplicados", "date_check", each
+      if FueraDeOrden([order_approved_at], [order_purchase_timestamp])
+      or FueraDeOrden([order_delivered_carrier_date], [order_approved_at])
+      or FueraDeOrden([order_delivered_customer_date], [order_delivered_carrier_date])
+      or FueraDeOrden([order_delivered_customer_date], [order_purchase_timestamp])
+      then "Inconsistent" else "OK", type text),
+  #"Dias de entrega" = Table.AddColumn(#"Revision de fechas", "delivery_days", each
+      if [date_check] = "Inconsistent" or [order_delivered_customer_date] = null then null
+      else Duration.Days([order_delivered_customer_date] - [order_purchase_timestamp]), Int64.Type),
+  #"Dias de retraso" = Table.AddColumn(#"Dias de entrega", "delay_days", each
+      if [date_check] = "Inconsistent" or [order_delivered_customer_date] = null then null
+      else Duration.Days([order_delivered_customer_date] - [order_estimated_delivery_date]), Int64.Type),
+  #"Entrega tarde" = Table.AddColumn(#"Dias de retraso", "is_late_delivery", each
+      if [date_check] = "Inconsistent" or [order_delivered_customer_date] = null then null
+      else if [order_delivered_customer_date] > [order_estimated_delivery_date] then 1 else 0, Int64.Type),
+  #"Fecha de compra" = Table.AddColumn(#"Entrega tarde", "purchase_date", each DateTime.Date([order_purchase_timestamp]), type date),
+  #"Anio de compra" = Table.AddColumn(#"Fecha de compra", "purchase_year", each Date.Year([purchase_date]), Int64.Type),
+  #"Mes de compra" = Table.AddColumn(#"Anio de compra", "purchase_month", each Date.Month([purchase_date]), Int64.Type)
+in
+  #"Mes de compra"
+
+
+---------------------------------------------------------------------
+CONSULTA: Order Items
+Sin duplicados (llave order_id + order_item_id) y total por línea.
+---------------------------------------------------------------------
+let
+  Origen = Csv.Document(Web.Contents("https://iteso01-my.sharepoint.com/personal/jose_almendarez_iteso_mx/Documents/kaggle_data/olist_order_items_dataset.csv"), [Delimiter = ",", Columns = 7, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(Origen, [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos", {{"order_id", type text}, {"order_item_id", Int64.Type}, {"product_id", type text}, {"seller_id", type text}, {"shipping_limit_date", type datetime}, {"price", type number}, {"freight_value", type number}}, "es-MX"),
+  #"Sin duplicados" = Table.Distinct(#"Tipo de columna cambiado", {"order_id", "order_item_id"}),
+  #"Total item" = Table.AddColumn(#"Sin duplicados", "total_item", each [price] + [freight_value], type number)
+in
+  #"Total item"
+
+
+---------------------------------------------------------------------
+CONSULTA: Customers
+customer_id renombrado a order_customer_id, código postal a texto de
+5 dígitos, sin duplicados, ciudad estandarizada (minúsculas, sin
+espacios extra ni acentos).
+---------------------------------------------------------------------
+let
+  QuitarAcentos = (texto as nullable text) as nullable text =>
+    let
+      origen  = {"á","à","â","ã","ä","é","è","ê","ë","í","ì","î","ï","ó","ò","ô","õ","ö","ú","ù","û","ü","ç","ñ"},
+      destino = {"a","a","a","a","a","e","e","e","e","i","i","i","i","o","o","o","o","o","u","u","u","u","c","n"}
+    in
+      if texto = null then null
+      else Text.Combine(List.ReplaceMatchingItems(Text.ToList(texto), List.Zip({origen, destino}))),
+
+  Origen = Csv.Document(Web.Contents("https://iteso01-my.sharepoint.com/personal/jose_almendarez_iteso_mx/Documents/kaggle_data/olist_customers_dataset.csv"), [Delimiter = ",", Columns = 5, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(Origen, [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos", {{"customer_id", type text}, {"customer_unique_id", type text}, {"customer_zip_code_prefix", Int64.Type}, {"customer_city", type text}, {"customer_state", type text}}, "es-MX"),
+  #"Columnas con nombre cambiado" = Table.RenameColumns(#"Tipo de columna cambiado", {{"customer_id", "order_customer_id"}}),
+  #"Codigo postal 5 digitos" = Table.TransformColumns(#"Columnas con nombre cambiado", {{"customer_zip_code_prefix", each Text.PadStart(Text.From(_), 5, "0"), type text}}),
+  #"Sin duplicados" = Table.Distinct(#"Codigo postal 5 digitos", {"order_customer_id"}),
+  #"Ciudad estandarizada" = Table.TransformColumns(#"Sin duplicados", {{"customer_city", each QuitarAcentos(Text.Clean(Text.Trim(Text.Lower(_)))), type nullable text}})
+in
+  #"Ciudad estandarizada"
+
+
+---------------------------------------------------------------------
+CONSULTA: Categories Translation
+Texto limpio y sin duplicados.
+---------------------------------------------------------------------
+let
+  Origen = Csv.Document(Web.Contents("https://iteso01-my.sharepoint.com/personal/jose_almendarez_iteso_mx/Documents/kaggle_data/product_category_name_translation.csv"), [Delimiter = ",", Columns = 2, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(Origen, [PromoteAllScalars = true]),
+  #"Texto limpio" = Table.TransformColumns(#"Encabezados promovidos", {{"product_category_name", each Text.Clean(Text.Trim(Text.Lower(_))), type text}, {"product_category_name_english", each Text.Clean(Text.Trim(Text.Lower(_))), type text}}),
+  #"Sin duplicados" = Table.Distinct(#"Texto limpio", {"product_category_name"})
+in
+  #"Sin duplicados"
+
+
+---------------------------------------------------------------------
+CONSULTA: Products
+Corrige "lenght" -> "length", sin duplicados, marca y anula medidas en
+0, categoría nula -> "no_category", traducción al inglés (si no hay
+traducción se queda el nombre original).
+---------------------------------------------------------------------
+let
+  Origen = Csv.Document(Web.Contents("https://iteso01-my.sharepoint.com/personal/jose_almendarez_iteso_mx/Documents/kaggle_data/olist_products_dataset.csv"), [Delimiter = ",", Columns = 9, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(Origen, [PromoteAllScalars = true]),
+  #"Columnas con nombre cambiado" = Table.RenameColumns(#"Encabezados promovidos", {{"product_name_lenght", "product_name_length"}, {"product_description_lenght", "product_description_length"}}),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Columnas con nombre cambiado", {{"product_id", type text}, {"product_category_name", type text}, {"product_name_length", Int64.Type}, {"product_description_length", Int64.Type}, {"product_photos_qty", Int64.Type}, {"product_weight_g", Int64.Type}, {"product_length_cm", Int64.Type}, {"product_height_cm", Int64.Type}, {"product_width_cm", Int64.Type}}, "es-MX"),
+  #"Sin duplicados" = Table.Distinct(#"Tipo de columna cambiado", {"product_id"}),
+  #"Marca ceros" = Table.AddColumn(#"Sin duplicados", "had_zero_measure", each List.Contains({[product_weight_g], [product_length_cm], [product_height_cm], [product_width_cm]}, 0), type logical),
+  #"Ceros a nulo" = Table.ReplaceValue(#"Marca ceros", 0, null, Replacer.ReplaceValue, {"product_weight_g", "product_length_cm", "product_height_cm", "product_width_cm"}),
+  #"Categoria nula" = Table.ReplaceValue(#"Ceros a nulo", null, "no_category", Replacer.ReplaceValue, {"product_category_name"}),
+  #"Unido con categorias" = Table.NestedJoin(#"Categoria nula", {"product_category_name"}, #"Categories Translation", {"product_category_name"}, "cat", JoinKind.LeftOuter),
+  #"Expandido" = Table.ExpandTableColumn(#"Unido con categorias", "cat", {"product_category_name_english"}),
+  #"Categoria" = Table.AddColumn(#"Expandido", "category", each if [product_category_name_english] = null then [product_category_name] else [product_category_name_english], type text),
+  #"Columnas quitadas" = Table.RemoveColumns(#"Categoria", {"product_category_name_english"})
+in
+  #"Columnas quitadas"
+
+
+---------------------------------------------------------------------
+CONSULTA: Order Reviews
+Tipos y sin filas duplicadas completas. QuoteStyle.Csv es necesario:
+los comentarios traen comas y saltos de línea entre comillas.
+---------------------------------------------------------------------
+let
+  Origen = Csv.Document(Web.Contents("https://iteso01-my.sharepoint.com/personal/jose_almendarez_iteso_mx/Documents/kaggle_data/olist_order_reviews_dataset.csv"), [Delimiter = ",", Columns = 7, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(Origen, [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos", {{"review_id", type text}, {"order_id", type text}, {"review_score", Int64.Type}, {"review_comment_title", type text}, {"review_comment_message", type text}, {"review_creation_date", type datetime}, {"review_answer_timestamp", type datetime}}, "es-MX"),
+  #"Sin duplicados" = Table.Distinct(#"Tipo de columna cambiado")
+in
+  #"Sin duplicados"
+
+
+---------------------------------------------------------------------
+CONSULTA: Geolocations
+Código postal a texto de 5 dígitos, ciudad estandarizada y una fila
+por código postal (mediana de coordenadas: robusta a puntos erróneos).
+---------------------------------------------------------------------
+let
+  QuitarAcentos = (texto as nullable text) as nullable text =>
+    let
+      origen  = {"á","à","â","ã","ä","é","è","ê","ë","í","ì","î","ï","ó","ò","ô","õ","ö","ú","ù","û","ü","ç","ñ"},
+      destino = {"a","a","a","a","a","e","e","e","e","i","i","i","i","o","o","o","o","o","u","u","u","u","c","n"}
+    in
+      if texto = null then null
+      else Text.Combine(List.ReplaceMatchingItems(Text.ToList(texto), List.Zip({origen, destino}))),
+
+  Origen = Csv.Document(Web.Contents("https://iteso01-my.sharepoint.com/personal/jose_almendarez_iteso_mx/Documents/kaggle_data/olist_geolocation_dataset.csv"), [Delimiter = ",", Columns = 5, Encoding = 65001, QuoteStyle = QuoteStyle.None]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(Origen, [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos", {{"geolocation_zip_code_prefix", Int64.Type}, {"geolocation_lat", type number}, {"geolocation_lng", type number}, {"geolocation_city", type text}, {"geolocation_state", type text}}, "es-MX"),
+  #"Codigo postal 5 digitos" = Table.TransformColumns(#"Tipo de columna cambiado", {{"geolocation_zip_code_prefix", each Text.PadStart(Text.From(_), 5, "0"), type text}}),
+  #"Ciudad estandarizada" = Table.TransformColumns(#"Codigo postal 5 digitos", {{"geolocation_city", each QuitarAcentos(Text.Clean(Text.Trim(Text.Lower(_)))), type nullable text}}),
+  #"Agrupado por codigo postal" = Table.Group(#"Ciudad estandarizada", {"geolocation_zip_code_prefix"}, {
+      {"lat",   each List.Median([geolocation_lat]), type number},
+      {"lng",   each List.Median([geolocation_lng]), type number},
+      {"city",  each List.Max([geolocation_city]),   type text},
+      {"state", each List.Max([geolocation_state]),  type text}
+  })
+in
+  #"Agrupado por codigo postal"
+
+
+---------------------------------------------------------------------
+CONSULTA: Sellers
+Código postal a texto de 5 dígitos, sin duplicados, ciudad
+estandarizada.
+---------------------------------------------------------------------
+let
+  QuitarAcentos = (texto as nullable text) as nullable text =>
+    let
+      origen  = {"á","à","â","ã","ä","é","è","ê","ë","í","ì","î","ï","ó","ò","ô","õ","ö","ú","ù","û","ü","ç","ñ"},
+      destino = {"a","a","a","a","a","e","e","e","e","i","i","i","i","o","o","o","o","o","u","u","u","u","c","n"}
+    in
+      if texto = null then null
+      else Text.Combine(List.ReplaceMatchingItems(Text.ToList(texto), List.Zip({origen, destino}))),
+
+  Origen = Csv.Document(Web.Contents("https://iteso01-my.sharepoint.com/personal/jose_almendarez_iteso_mx/Documents/kaggle_data/olist_sellers_dataset.csv"), [Delimiter = ",", Columns = 4, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(Origen, [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos", {{"seller_id", type text}, {"seller_zip_code_prefix", Int64.Type}, {"seller_city", type text}, {"seller_state", type text}}, "es-MX"),
+  #"Codigo postal 5 digitos" = Table.TransformColumns(#"Tipo de columna cambiado", {{"seller_zip_code_prefix", each Text.PadStart(Text.From(_), 5, "0"), type text}}),
+  #"Sin duplicados" = Table.Distinct(#"Codigo postal 5 digitos", {"seller_id"}),
+  #"Ciudad estandarizada" = Table.TransformColumns(#"Sin duplicados", {{"seller_city", each QuitarAcentos(Text.Clean(Text.Trim(Text.Lower(_)))), type nullable text}})
+in
+  #"Ciudad estandarizada"
+
+
+---------------------------------------------------------------------
+CONSULTA: Order Payments
+Sin duplicados y agrupada a una fila por orden (relación 1:1 con
+Orders): total pagado, número de pagos, máximo de cuotas y método
+principal (el de mayor monto).
+---------------------------------------------------------------------
+let
+  Origen = Csv.Document(Web.Contents("https://iteso01-my.sharepoint.com/personal/jose_almendarez_iteso_mx/Documents/kaggle_data/olist_order_payments_dataset.csv"), [Delimiter = ",", Columns = 5, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(Origen, [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos", {{"order_id", type text}, {"payment_sequential", Int64.Type}, {"payment_type", type text}, {"payment_installments", Int64.Type}, {"payment_value", type number}}, "es-MX"),
+  #"Sin duplicados" = Table.Distinct(#"Tipo de columna cambiado", {"order_id", "payment_sequential"}),
+  #"Agrupado por orden" = Table.Group(#"Sin duplicados", {"order_id"}, {
+      {"total_paid", each List.Sum([payment_value]), type number},
+      {"payment_count", each Table.RowCount(_), Int64.Type},
+      {"max_installments", each List.Max([payment_installments]), Int64.Type},
+      {"main_payment_type", each Table.Max(_, "payment_value")[payment_type], type text}
+  })
+in
+  #"Agrupado por orden"
+
+
+=====================================================================
+TABLAS PLANAS PARA EL DASHBOARD
+Excel web no tiene modelo de datos (Power Pivot): una tabla dinámica
+solo lee una tabla. Estas dos consultas reemplazan las relaciones con
+merges. Equivalen al borrador de fact_resenas y fact_ventas de gold.
+=====================================================================
+
+
+---------------------------------------------------------------------
+CONSULTA: Orders Analysis
+Una fila por orden (99,441 filas). main_category = categoría del
+producto más caro de la orden; permite que el panel de categorías salga
+de esta misma tabla y lo filtren los mismos controles que los demás.
+---------------------------------------------------------------------
+let
+  Items = Table.Group(#"Order Items", {"order_id"}, {
+      {"items_value", each List.Sum([price]), type number},
+      {"freight_value", each List.Sum([freight_value]), type number},
+      {"item_count", each Table.RowCount(_), Int64.Type}}),
+  Resenas = Table.Group(#"Order Reviews", {"order_id"}, {
+      {"review_score", each List.Average([review_score]), type number}}),
+  ItemsConCategoria = Table.ExpandTableColumn(Table.NestedJoin(#"Order Items", {"product_id"}, Products, {"product_id"}, "p", JoinKind.LeftOuter), "p", {"category"}),
+  CategoriaPrincipal = Table.Group(ItemsConCategoria, {"order_id"}, {
+      {"main_category", each Table.Max(_, "price")[category], type text}}),
+  Base = Table.SelectColumns(Orders, {"order_id", "order_customer_id", "order_status", "purchase_date", "purchase_year", "purchase_month", "delivery_days", "delay_days", "is_late_delivery", "date_check"}),
+  #"Con items" = Table.ExpandTableColumn(Table.NestedJoin(Base, {"order_id"}, Items, {"order_id"}, "x", JoinKind.LeftOuter), "x", {"items_value", "freight_value", "item_count"}),
+  #"Con resenas" = Table.ExpandTableColumn(Table.NestedJoin(#"Con items", {"order_id"}, Resenas, {"order_id"}, "x", JoinKind.LeftOuter), "x", {"review_score"}),
+  #"Con pagos" = Table.ExpandTableColumn(Table.NestedJoin(#"Con resenas", {"order_id"}, #"Order Payments", {"order_id"}, "x", JoinKind.LeftOuter), "x", {"total_paid", "main_payment_type"}),
+  #"Con clientes" = Table.ExpandTableColumn(Table.NestedJoin(#"Con pagos", {"order_customer_id"}, Customers, {"order_customer_id"}, "x", JoinKind.LeftOuter), "x", {"customer_unique_id", "customer_city", "customer_state"}),
+  #"Rango de retraso" = Table.AddColumn(#"Con clientes", "delay_bucket", each
+      if [delay_days] = null then null
+      else if [delay_days] <= 0 then "1. On time or early"
+      else if [delay_days] <= 5 then "2. 1-5 days late"
+      else if [delay_days] <= 15 then "3. 6-15 days late"
+      else "4. 16+ days late", type text),
+  #"Anio mes" = Table.AddColumn(#"Rango de retraso", "purchase_year_month", each Date.ToText([purchase_date], "yyyy-MM"), type text),
+  #"Con categoria" = Table.ExpandTableColumn(Table.NestedJoin(#"Anio mes", {"order_id"}, CategoriaPrincipal, {"order_id"}, "x", JoinKind.LeftOuter), "x", {"main_category"})
+in
+  #"Con categoria"
+
+
+---------------------------------------------------------------------
+CONSULTA: Sales Items
+Una fila por línea de pedido (112,650 filas).
+---------------------------------------------------------------------
+let
+  Base = Table.SelectColumns(#"Order Items", {"order_id", "order_item_id", "product_id", "seller_id", "price", "freight_value", "total_item"}),
+  #"Con orden" = Table.ExpandTableColumn(Table.NestedJoin(Base, {"order_id"}, #"Orders Analysis", {"order_id"}, "x", JoinKind.LeftOuter), "x", {"order_status", "purchase_date", "purchase_year", "purchase_month", "purchase_year_month", "delay_days", "is_late_delivery", "review_score", "customer_state"}),
+  #"Con producto" = Table.ExpandTableColumn(Table.NestedJoin(#"Con orden", {"product_id"}, Products, {"product_id"}, "x", JoinKind.LeftOuter), "x", {"category"}),
+  #"Con vendedor" = Table.ExpandTableColumn(Table.NestedJoin(#"Con producto", {"seller_id"}, Sellers, {"seller_id"}, "x", JoinKind.LeftOuter), "x", {"seller_city", "seller_state"})
+in
+  #"Con vendedor"
