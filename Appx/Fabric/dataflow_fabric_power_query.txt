@@ -1,0 +1,273 @@
+---------------------------------------------------------------------
+CONSULTA: orders
+Tipos, sin duplicados, revisión de fechas, días de entrega, días de
+retraso, bandera de entrega tarde, rango de retraso y fecha de compra
+(para relacionar con calendar).
+Ya no lleva año/mes/año-mes: salen de la tabla calendar.
+---------------------------------------------------------------------
+let
+  Origen = Lakehouse.Contents(null),
+  Navegación = Origen{[workspaceId = "3d3f7358-6cd5-49e6-bf7f-f98900abdc44"]}[Data],
+  #"Navegación 1" = Navegación{[lakehouseId = "fd1301b8-b3ca-4878-bab5-c2d3cf63fa89"]}[Data],
+  #"Navegación 2" = #"Navegación 1"{[Id = "Files", ItemKind = "Folder"]}[Data],
+  #"Navegación 3" = #"Navegación 2"{[Name = "bronze"]}[Content],
+  #"Navegación 4" = #"Navegación 3"{[Name = "olist_orders_dataset.csv"]}[Content],
+  #"CSV importado" = Csv.Document(#"Navegación 4", [Delimiter = ",", Columns = 8, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(#"CSV importado", [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos", {{"order_id", type text}, {"customer_id", type text}, {"order_status", type text}, {"order_purchase_timestamp", type datetime}, {"order_approved_at", type datetime}, {"order_delivered_carrier_date", type datetime}, {"order_delivered_customer_date", type datetime}, {"order_estimated_delivery_date", type datetime}}, "en-US"),
+  #"Sin duplicados" = Table.Distinct(#"Tipo de columna cambiado", {"order_id"}),
+  FueraDeOrden = (posterior, anterior) => posterior <> null and anterior <> null and posterior < anterior,
+  #"Revision de fechas" = Table.AddColumn(#"Sin duplicados", "date_check", each
+      if FueraDeOrden([order_approved_at], [order_purchase_timestamp])
+      or FueraDeOrden([order_delivered_carrier_date], [order_approved_at])
+      or FueraDeOrden([order_delivered_customer_date], [order_delivered_carrier_date])
+      or FueraDeOrden([order_delivered_customer_date], [order_purchase_timestamp])
+      then "Inconsistent" else "OK", type text),
+  #"Dias de entrega" = Table.AddColumn(#"Revision de fechas", "delivery_days", each
+      if [date_check] = "Inconsistent" or [order_delivered_customer_date] = null then null
+      else Duration.Days([order_delivered_customer_date] - [order_purchase_timestamp]), Int64.Type),
+  #"Dias de retraso" = Table.AddColumn(#"Dias de entrega", "delay_days", each
+      if [date_check] = "Inconsistent" or [order_delivered_customer_date] = null then null
+      else Duration.Days([order_delivered_customer_date] - [order_estimated_delivery_date]), Int64.Type),
+  #"Entrega tarde" = Table.AddColumn(#"Dias de retraso", "is_late_delivery", each
+      if [date_check] = "Inconsistent" or [order_delivered_customer_date] = null then null
+      else if [order_delivered_customer_date] > [order_estimated_delivery_date] then 1 else 0, Int64.Type),
+  #"Rango de retraso" = Table.AddColumn(#"Entrega tarde", "delay_bucket", each
+      if [delay_days] = null then null
+      else if [delay_days] <= 0 then "1. On time or early"
+      else if [delay_days] <= 5 then "2. 1-5 days late"
+      else if [delay_days] <= 15 then "3. 6-15 days late"
+      else "4. 16+ days late", type text),
+  #"Fecha de compra" = Table.AddColumn(#"Rango de retraso", "purchase_date", each DateTime.Date([order_purchase_timestamp]), type date)
+in
+  #"Fecha de compra"
+
+
+---------------------------------------------------------------------
+CONSULTA: order_items
+Tipos (price y freight_value decimales), sin duplicados y total por línea.
+---------------------------------------------------------------------
+let
+  Origen = Lakehouse.Contents(null),
+  Navegación = Origen{[workspaceId = "3d3f7358-6cd5-49e6-bf7f-f98900abdc44"]}[Data],
+  #"Navegación 1" = Navegación{[lakehouseId = "fd1301b8-b3ca-4878-bab5-c2d3cf63fa89"]}[Data],
+  #"Navegación 2" = #"Navegación 1"{[Id = "Files", ItemKind = "Folder"]}[Data],
+  #"Navegación 3" = #"Navegación 2"{[Name = "bronze"]}[Content],
+  #"Navegación 4" = #"Navegación 3"{[Name = "olist_order_items_dataset.csv"]}[Content],
+  #"CSV importado" = Csv.Document(#"Navegación 4", [Delimiter = ",", Columns = 7, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(#"CSV importado", [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos", {{"order_id", type text}, {"order_item_id", Int64.Type}, {"product_id", type text}, {"seller_id", type text}, {"shipping_limit_date", type datetime}, {"price", type number}, {"freight_value", type number}}, "en-US"),
+  #"Sin duplicados" = Table.Distinct(#"Tipo de columna cambiado", {"order_id", "order_item_id"}),
+  #"Total item" = Table.AddColumn(#"Sin duplicados", "total_item", each [price] + [freight_value], type number)
+in
+  #"Total item"
+
+
+---------------------------------------------------------------------
+CONSULTA: customers
+Código postal a texto de 5 dígitos, sin duplicados, ciudad estandarizada.
+customer_id se deja con su nombre original (se relaciona con orders.customer_id).
+---------------------------------------------------------------------
+let
+  QuitarAcentos = (texto as nullable text) as nullable text =>
+    let
+      origen  = {"á","à","â","ã","ä","é","è","ê","ë","í","ì","î","ï","ó","ò","ô","õ","ö","ú","ù","û","ü","ç","ñ"},
+      destino = {"a","a","a","a","a","e","e","e","e","i","i","i","i","o","o","o","o","o","u","u","u","u","c","n"}
+    in
+      if texto = null then null
+      else Text.Combine(List.ReplaceMatchingItems(Text.ToList(texto), List.Zip({origen, destino}))),
+
+  Origen = Lakehouse.Contents(null),
+  Navegación = Origen{[workspaceId = "3d3f7358-6cd5-49e6-bf7f-f98900abdc44"]}[Data],
+  #"Navegación 1" = Navegación{[lakehouseId = "fd1301b8-b3ca-4878-bab5-c2d3cf63fa89"]}[Data],
+  #"Navegación 2" = #"Navegación 1"{[Id = "Files", ItemKind = "Folder"]}[Data],
+  #"Navegación 3" = #"Navegación 2"{[Name = "bronze"]}[Content],
+  #"Navegación 4" = #"Navegación 3"{[Name = "olist_customers_dataset.csv"]}[Content],
+  #"CSV importado" = Csv.Document(#"Navegación 4", [Delimiter = ",", Columns = 5, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(#"CSV importado", [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos", {{"customer_id", type text}, {"customer_unique_id", type text}, {"customer_zip_code_prefix", Int64.Type}, {"customer_city", type text}, {"customer_state", type text}}, "en-US"),
+  #"Codigo postal 5 digitos" = Table.TransformColumns(#"Tipo de columna cambiado", {{"customer_zip_code_prefix", each Text.PadStart(Text.From(_), 5, "0"), type text}}),
+  #"Sin duplicados" = Table.Distinct(#"Codigo postal 5 digitos", {"customer_id"}),
+  #"Ciudad estandarizada" = Table.TransformColumns(#"Sin duplicados", {{"customer_city", each QuitarAcentos(Text.Clean(Text.Trim(Text.Lower(_)))), type nullable text}})
+in
+  #"Ciudad estandarizada"
+
+
+---------------------------------------------------------------------
+CONSULTA: category_translation
+Texto limpio y sin duplicados.
+(Si no la vas a usar en el reporte, desactiva su destino: products ya
+trae la categoría traducida.)
+---------------------------------------------------------------------
+let
+  Origen = Lakehouse.Contents(null),
+  Navegación = Origen{[workspaceId = "3d3f7358-6cd5-49e6-bf7f-f98900abdc44"]}[Data],
+  #"Navegación 1" = Navegación{[lakehouseId = "fd1301b8-b3ca-4878-bab5-c2d3cf63fa89"]}[Data],
+  #"Navegación 2" = #"Navegación 1"{[Id = "Files", ItemKind = "Folder"]}[Data],
+  #"Navegación 3" = #"Navegación 2"{[Name = "bronze"]}[Content],
+  #"Navegación 4" = #"Navegación 3"{[Name = "product_category_name_translation.csv"]}[Content],
+  #"CSV importado" = Csv.Document(#"Navegación 4", [Delimiter = ",", Columns = 2, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(#"CSV importado", [PromoteAllScalars = true]),
+  #"Texto limpio" = Table.TransformColumns(#"Encabezados promovidos", {{"product_category_name", each Text.Clean(Text.Trim(Text.Lower(_))), type text}, {"product_category_name_english", each Text.Clean(Text.Trim(Text.Lower(_))), type text}}),
+  #"Sin duplicados" = Table.Distinct(#"Texto limpio", {"product_category_name"})
+in
+  #"Sin duplicados"
+
+
+---------------------------------------------------------------------
+CONSULTA: products
+Corrige "lenght" -> "length", sin duplicados, marca y anula medidas en
+0, categoría nula -> "no_category", categoría en inglés (si no hay
+traducción se queda el nombre original).
+---------------------------------------------------------------------
+let
+  Origen = Lakehouse.Contents(null),
+  Navegación = Origen{[workspaceId = "3d3f7358-6cd5-49e6-bf7f-f98900abdc44"]}[Data],
+  #"Navegación 1" = Navegación{[lakehouseId = "fd1301b8-b3ca-4878-bab5-c2d3cf63fa89"]}[Data],
+  #"Navegación 2" = #"Navegación 1"{[Id = "Files", ItemKind = "Folder"]}[Data],
+  #"Navegación 3" = #"Navegación 2"{[Name = "bronze"]}[Content],
+  #"Navegación 4" = #"Navegación 3"{[Name = "olist_products_dataset.csv"]}[Content],
+  #"CSV importado" = Csv.Document(#"Navegación 4", [Delimiter = ",", Columns = 9, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(#"CSV importado", [PromoteAllScalars = true]),
+  #"Columnas con nombre cambiado" = Table.RenameColumns(#"Encabezados promovidos", {{"product_name_lenght", "product_name_length"}, {"product_description_lenght", "product_description_length"}}),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Columnas con nombre cambiado", {{"product_id", type text}, {"product_category_name", type text}, {"product_name_length", Int64.Type}, {"product_description_length", Int64.Type}, {"product_photos_qty", Int64.Type}, {"product_weight_g", Int64.Type}, {"product_length_cm", Int64.Type}, {"product_height_cm", Int64.Type}, {"product_width_cm", Int64.Type}}, "en-US"),
+  #"Sin duplicados" = Table.Distinct(#"Tipo de columna cambiado", {"product_id"}),
+  #"Marca ceros" = Table.AddColumn(#"Sin duplicados", "had_zero_measure", each List.Contains({[product_weight_g], [product_length_cm], [product_height_cm], [product_width_cm]}, 0), type logical),
+  #"Ceros a nulo" = Table.ReplaceValue(#"Marca ceros", 0, null, Replacer.ReplaceValue, {"product_weight_g", "product_length_cm", "product_height_cm", "product_width_cm"}),
+  #"Categoria nula" = Table.ReplaceValue(#"Ceros a nulo", null, "no_category", Replacer.ReplaceValue, {"product_category_name"}),
+  #"Unido con categorias" = Table.NestedJoin(#"Categoria nula", {"product_category_name"}, category_translation, {"product_category_name"}, "cat", JoinKind.LeftOuter),
+  #"Expandido" = Table.ExpandTableColumn(#"Unido con categorias", "cat", {"product_category_name_english"}),
+  #"Categoria" = Table.AddColumn(#"Expandido", "category", each if [product_category_name_english] = null then [product_category_name] else [product_category_name_english], type text),
+  #"Columnas quitadas" = Table.RemoveColumns(#"Categoria", {"product_category_name_english"})
+in
+  #"Columnas quitadas"
+
+
+---------------------------------------------------------------------
+CONSULTA: order_reviews
+Tipos y sin filas duplicadas completas. QuoteStyle.Csv es necesario:
+los comentarios traen comas y saltos de línea entre comillas.
+---------------------------------------------------------------------
+let
+  Origen = Lakehouse.Contents(null),
+  Navegación = Origen{[workspaceId = "3d3f7358-6cd5-49e6-bf7f-f98900abdc44"]}[Data],
+  #"Navegación 1" = Navegación{[lakehouseId = "fd1301b8-b3ca-4878-bab5-c2d3cf63fa89"]}[Data],
+  #"Navegación 2" = #"Navegación 1"{[Id = "Files", ItemKind = "Folder"]}[Data],
+  #"Navegación 3" = #"Navegación 2"{[Name = "bronze"]}[Content],
+  #"Navegación 4" = #"Navegación 3"{[Name = "olist_order_reviews_dataset.csv"]}[Content],
+  #"CSV importado" = Csv.Document(#"Navegación 4", [Delimiter = ",", Columns = 7, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(#"CSV importado", [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos", {{"review_id", type text}, {"order_id", type text}, {"review_score", Int64.Type}, {"review_comment_title", type text}, {"review_comment_message", type text}, {"review_creation_date", type datetime}, {"review_answer_timestamp", type datetime}}, "en-US"),
+  #"Sin duplicados" = Table.Distinct(#"Tipo de columna cambiado")
+in
+  #"Sin duplicados"
+
+
+---------------------------------------------------------------------
+CONSULTA: geolocation
+Código postal a texto de 5 dígitos, ciudad estandarizada y una fila
+por código postal (mediana de coordenadas: robusta a puntos erróneos).
+lat y lng corregidos a decimal.
+---------------------------------------------------------------------
+let
+  QuitarAcentos = (texto as nullable text) as nullable text =>
+    let
+      origen  = {"á","à","â","ã","ä","é","è","ê","ë","í","ì","î","ï","ó","ò","ô","õ","ö","ú","ù","û","ü","ç","ñ"},
+      destino = {"a","a","a","a","a","e","e","e","e","i","i","i","i","o","o","o","o","o","u","u","u","u","c","n"}
+    in
+      if texto = null then null
+      else Text.Combine(List.ReplaceMatchingItems(Text.ToList(texto), List.Zip({origen, destino}))),
+
+  Origen = Lakehouse.Contents(null),
+  Navegación = Origen{[workspaceId = "3d3f7358-6cd5-49e6-bf7f-f98900abdc44"]}[Data],
+  #"Navegación 1" = Navegación{[lakehouseId = "fd1301b8-b3ca-4878-bab5-c2d3cf63fa89"]}[Data],
+  #"Navegación 2" = #"Navegación 1"{[Id = "Files", ItemKind = "Folder"]}[Data],
+  #"Navegación 3" = #"Navegación 2"{[Name = "bronze"]}[Content],
+  #"Navegación 4" = #"Navegación 3"{[Name = "olist_geolocation_dataset.csv"]}[Content],
+  #"CSV importado" = Csv.Document(#"Navegación 4", [Delimiter = ",", Columns = 5, Encoding = 65001, QuoteStyle = QuoteStyle.None]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(#"CSV importado", [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos", {{"geolocation_zip_code_prefix", Int64.Type}, {"geolocation_lat", type number}, {"geolocation_lng", type number}, {"geolocation_city", type text}, {"geolocation_state", type text}}, "en-US"),
+  #"Codigo postal 5 digitos" = Table.TransformColumns(#"Tipo de columna cambiado", {{"geolocation_zip_code_prefix", each Text.PadStart(Text.From(_), 5, "0"), type text}}),
+  #"Ciudad estandarizada" = Table.TransformColumns(#"Codigo postal 5 digitos", {{"geolocation_city", each QuitarAcentos(Text.Clean(Text.Trim(Text.Lower(_)))), type nullable text}}),
+  #"Agrupado por codigo postal" = Table.Group(#"Ciudad estandarizada", {"geolocation_zip_code_prefix"}, {
+      {"lat",   each List.Median([geolocation_lat]), type number},
+      {"lng",   each List.Median([geolocation_lng]), type number},
+      {"city",  each List.Max([geolocation_city]),   type text},
+      {"state", each List.Max([geolocation_state]),  type text}
+  })
+in
+  #"Agrupado por codigo postal"
+
+
+---------------------------------------------------------------------
+CONSULTA: sellers
+Código postal a texto de 5 dígitos, sin duplicados, ciudad estandarizada.
+---------------------------------------------------------------------
+let
+  QuitarAcentos = (texto as nullable text) as nullable text =>
+    let
+      origen  = {"á","à","â","ã","ä","é","è","ê","ë","í","ì","î","ï","ó","ò","ô","õ","ö","ú","ù","û","ü","ç","ñ"},
+      destino = {"a","a","a","a","a","e","e","e","e","i","i","i","i","o","o","o","o","o","u","u","u","u","c","n"}
+    in
+      if texto = null then null
+      else Text.Combine(List.ReplaceMatchingItems(Text.ToList(texto), List.Zip({origen, destino}))),
+
+  Origen = Lakehouse.Contents(null),
+  Navegación = Origen{[workspaceId = "3d3f7358-6cd5-49e6-bf7f-f98900abdc44"]}[Data],
+  #"Navegación 1" = Navegación{[lakehouseId = "fd1301b8-b3ca-4878-bab5-c2d3cf63fa89"]}[Data],
+  #"Navegación 2" = #"Navegación 1"{[Id = "Files", ItemKind = "Folder"]}[Data],
+  #"Navegación 3" = #"Navegación 2"{[Name = "bronze"]}[Content],
+  #"Navegación 4" = #"Navegación 3"{[Name = "olist_sellers_dataset.csv"]}[Content],
+  #"CSV importado" = Csv.Document(#"Navegación 4", [Delimiter = ",", Columns = 4, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(#"CSV importado", [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos", {{"seller_id", type text}, {"seller_zip_code_prefix", Int64.Type}, {"seller_city", type text}, {"seller_state", type text}}, "en-US"),
+  #"Codigo postal 5 digitos" = Table.TransformColumns(#"Tipo de columna cambiado", {{"seller_zip_code_prefix", each Text.PadStart(Text.From(_), 5, "0"), type text}}),
+  #"Sin duplicados" = Table.Distinct(#"Codigo postal 5 digitos", {"seller_id"}),
+  #"Ciudad estandarizada" = Table.TransformColumns(#"Sin duplicados", {{"seller_city", each QuitarAcentos(Text.Clean(Text.Trim(Text.Lower(_)))), type nullable text}})
+in
+  #"Ciudad estandarizada"
+
+
+---------------------------------------------------------------------
+CONSULTA: order_payments
+Tipos (payment_value decimal) y sin duplicados. Se queda a nivel pago:
+el total pagado por orden sale de una medida DAX y la relación con
+orders es muchos-a-uno por order_id.
+---------------------------------------------------------------------
+let
+  Origen = Lakehouse.Contents(null),
+  Navegación = Origen{[workspaceId = "3d3f7358-6cd5-49e6-bf7f-f98900abdc44"]}[Data],
+  #"Navegación 1" = Navegación{[lakehouseId = "fd1301b8-b3ca-4878-bab5-c2d3cf63fa89"]}[Data],
+  #"Navegación 2" = #"Navegación 1"{[Id = "Files", ItemKind = "Folder"]}[Data],
+  #"Navegación 3" = #"Navegación 2"{[Name = "bronze"]}[Content],
+  #"Navegación 4" = #"Navegación 3"{[Name = "olist_order_payments_dataset.csv"]}[Content],
+  #"CSV importado" = Csv.Document(#"Navegación 4", [Delimiter = ",", Columns = 5, Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+  #"Encabezados promovidos" = Table.PromoteHeaders(#"CSV importado", [PromoteAllScalars = true]),
+  #"Tipo de columna cambiado" = Table.TransformColumnTypes(#"Encabezados promovidos", {{"order_id", type text}, {"payment_sequential", Int64.Type}, {"payment_type", type text}, {"payment_installments", Int64.Type}, {"payment_value", type number}}, "en-US"),
+  #"Sin duplicados" = Table.Distinct(#"Tipo de columna cambiado", {"order_id", "payment_sequential"})
+in
+  #"Sin duplicados"
+
+
+---------------------------------------------------------------------
+CONSULTA NUEVA: calendar  (Obtener datos > Consulta en blanco)
+Tabla de fechas: reemplaza purchase_year, purchase_month y
+purchase_year_month. Va de enero del primer año a diciembre del último
+año con compras. Se relaciona calendar[date] -> orders[purchase_date].
+En el modelo: márcala como tabla de fechas y ordena month_name por month.
+---------------------------------------------------------------------
+let
+  Fechas = orders[purchase_date],
+  Inicio = Date.StartOfYear(List.Min(Fechas)),
+  Fin = Date.EndOfYear(List.Max(Fechas)),
+  Lista = List.Dates(Inicio, Duration.Days(Fin - Inicio) + 1, #duration(1, 0, 0, 0)),
+  Tabla = Table.FromList(Lista, Splitter.SplitByNothing(), {"date"}),
+  #"Tipo fecha" = Table.TransformColumnTypes(Tabla, {{"date", type date}}),
+  #"Anio" = Table.AddColumn(#"Tipo fecha", "year", each Date.Year([date]), Int64.Type),
+  #"Trimestre" = Table.AddColumn(#"Anio", "quarter", each "Q" & Text.From(Date.QuarterOfYear([date])), type text),
+  #"Mes" = Table.AddColumn(#"Trimestre", "month", each Date.Month([date]), Int64.Type),
+  #"Nombre mes" = Table.AddColumn(#"Mes", "month_name", each Date.ToText([date], "MMM", "en-US"), type text),
+  #"Anio mes" = Table.AddColumn(#"Nombre mes", "year_month", each Date.ToText([date], "yyyy-MM"), type text)
+in
+  #"Anio mes"
+

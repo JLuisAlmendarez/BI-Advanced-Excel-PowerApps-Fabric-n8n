@@ -1,0 +1,105 @@
+
+---------------------------------------------------------------------
+RELACIONES (todas muchos a uno, dirección de filtro única)
+---------------------------------------------------------------------
+  orders[customer_id]                   -> customers[customer_id]
+  orders[purchase_date]                 -> calendar[date]
+  order_items[order_id]                 -> orders[order_id]
+  order_items[product_id]               -> products[product_id]
+  order_items[seller_id]                -> sellers[seller_id]
+  order_reviews[order_id]               -> orders[order_id]
+  order_payments[order_id]              -> orders[order_id]
+  customers[customer_zip_code_prefix]   -> geolocation[geolocation_zip_code_prefix]
+
+Ajustes del modelo:
+  - calendar marcada como tabla de fechas (columna date).
+  - calendar[month_name] ordenada por calendar[month].
+  - Resumir por = Ninguno en order_item_id, payment_sequential y
+    payment_installments.
+
+
+---------------------------------------------------------------------
+VENTAS E INGRESOS
+---------------------------------------------------------------------
+
+Ventas =
+SUM ( order_items[price] )
+-- Suma del precio de los productos vendidos (sin flete).
+-- Formato: número, 2 decimales.
+
+Flete =
+SUM ( order_items[freight_value] )
+-- Suma del costo de envío cobrado.
+-- Formato: número, 2 decimales.
+
+Ingreso total =
+SUM ( order_items[total_item] )
+-- Precio + flete por línea de pedido.
+-- Formato: número, 2 decimales.
+
+Total pagado =
+SUM ( order_payments[payment_value] )
+-- Monto efectivamente pagado por los clientes (todos los métodos de pago).
+-- Formato: número, 2 decimales.
+
+
+---------------------------------------------------------------------
+VOLUMEN Y CLIENTES
+---------------------------------------------------------------------
+
+Ordenes =
+COUNTROWS ( orders )
+-- Número de órdenes (una fila por orden en la tabla orders).
+-- Formato: número entero.
+
+Ticket promedio =
+DIVIDE ( [Ventas], [Ordenes] )
+-- Venta promedio por orden.
+-- Formato: número, 2 decimales.
+
+Clientes unicos =
+CALCULATE ( DISTINCTCOUNT ( customers[customer_unique_id] ), orders )
+-- Clientes reales distintos. Se usa customer_unique_id porque Olist
+-- genera un customer_id nuevo en cada orden.
+-- El argumento "orders" hace que la medida respete los filtros que
+-- llegan a orders (fecha, estado), aunque customers esté del lado "uno".
+-- Formato: número entero.
+
+
+---------------------------------------------------------------------
+LOGÍSTICA Y SATISFACCIÓN
+---------------------------------------------------------------------
+
+Dias de entrega promedio =
+AVERAGE ( orders[delivery_days] )
+-- Días promedio entre la compra y la entrega al cliente.
+-- Excluye órdenes no entregadas o con fechas inconsistentes
+-- (delivery_days viene nulo desde el Dataflow).
+-- Formato: número, 2 decimales.
+
+% Entregas tarde =
+DIVIDE ( SUM ( orders[is_late_delivery] ), COUNT ( orders[is_late_delivery] ) )
+-- Proporción de órdenes entregadas después de la fecha estimada.
+-- COUNT ignora nulos: solo cuenta órdenes entregadas con fechas válidas.
+-- Formato: porcentaje, 1 decimal.
+
+% Entregas tarde por producto =
+CALCULATE (
+    [% Entregas tarde],
+    CROSSFILTER ( order_items[order_id], orders[order_id], BOTH )
+)
+-- Igual que % Entregas tarde, pero responde a filtros de producto,
+-- categoría o vendedor. Esos filtros entran por order_items y, con
+-- dirección única, no llegarían a orders. CROSSFILTER activa la
+-- dirección doble solo dentro de esta medida.
+-- Nota: una orden con productos de varias categorías cuenta en cada una
+-- (en el prototipo de Excel contaba solo en main_category).
+-- Formato: porcentaje, 1 decimal.
+
+Calificacion promedio =
+AVERAGE ( order_reviews[review_score] )
+-- Promedio de calificación de reseñas (1 a 5).
+-- Nota: en el prototipo se promediaba primero por orden y luego en
+-- total; aquí se promedian todas las reseñas. La diferencia es mínima.
+-- Formato: número, 2 decimales.
+
