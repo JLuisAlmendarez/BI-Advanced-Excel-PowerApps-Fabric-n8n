@@ -1,0 +1,53 @@
+
+FLUJO 1 · Aviso a vendedores
+============================
+Tipo:          Flujo de nube programado
+Disparador:    Recurrence, cada 15 minutos
+
+[Avisos]  Ejecutar procedimiento almacenado (V2)
+  Procedimiento:  [dbo].[sp_avisos_pendientes]
+  Nota: la acción debe llamarse exactamente "Avisos" antes de escribir
+        la expresión del ciclo.
+
+[Aplicar a cada uno]
+  Entrada:
+    body('Avisos')?['resultsets']?['Table1']
+
+  [Enviar un correo electrónico (V2)]  Office 365 Outlook
+    A:  (engrane → Usar contenido dinámico → fx)
+      items('Aplicar_a_cada_uno')?['correo']
+
+    Asunto:  texto + fx
+      Tienes @{items('Aplicar_a_cada_uno')?['total_pendientes']} reseñas negativas por atender
+
+    Cuerpo:  (vista de código </>)
+      <p>Hola @{items('Aplicar_a_cada_uno')?['nombre']},</p>
+      <p>Tienes <b>@{items('Aplicar_a_cada_uno')?['total_pendientes']}</b> reseñas de 1 o 2 estrellas sin responder. Estas son las más recientes:</p>
+      <ul>@{items('Aplicar_a_cada_uno')?['lista_html']}</ul>
+      <p>Respóndelas desde el <a href="https://make.powerapps.com">Portal del vendedor</a>.</p>
+
+      (La liga es temporal; se reemplaza por la de la app en la fase 7.)
+
+  [Marcar notificadas]  Ejecutar procedimiento almacenado (V2)
+    Procedimiento:  [dbo].[sp_marcar_notificadas]
+    seller_id:
+      items('Aplicar_a_cada_uno')?['seller_id']
+
+
+FLUJO 2 · Respuesta del cliente
+===============================
+Tipo:          Flujo de nube automatizado
+Disparador:    Office 365 Outlook → Cuando llega un nuevo correo electrónico (V3)
+  Carpeta:          Bandeja de entrada
+  Filtro de asunto: [Queja #
+
+[Ejecutar procedimiento almacenado (V2)]
+  Procedimiento:  [dbo].[sp_guardar_respuesta_cliente]
+
+  seguimiento_id:  (saca el número de queja del asunto, p. ej. "RE: [Queja #1953] ...")
+    int(first(split(last(split(triggerOutputs()?['body/subject'], '#')), ']')))
+
+  mensaje:  (texto del correo sin formato; puede incluir parte del mensaje citado)
+    triggerOutputs()?['body/bodyPreview']
+
+

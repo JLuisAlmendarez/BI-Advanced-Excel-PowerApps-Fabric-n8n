@@ -1,0 +1,116 @@
+/* ---------------------------------------------------------------------
+   1. Tablas
+   --------------------------------------------------------------------- */
+
+-- Vendedores que recibirán correos (Olist no trae correos: usa alias tuyos)
+CREATE TABLE dbo.vendedor_contacto (
+    seller_id  VARCHAR(32)   NOT NULL PRIMARY KEY,
+    nombre     NVARCHAR(100) NOT NULL,
+    correo     NVARCHAR(200) NOT NULL
+);
+
+-- Una fila por reseña de 1-2 estrellas y vendedor
+CREATE TABLE dbo.seguimiento_resenas (
+    id                 INT IDENTITY(1,1) PRIMARY KEY,
+    review_id          VARCHAR(32)    NOT NULL,
+    order_id           VARCHAR(32)    NOT NULL,
+    seller_id          VARCHAR(32)    NOT NULL,
+    categoria_producto NVARCHAR(100)  NULL,
+    calificacion       TINYINT        NOT NULL,
+    titulo             NVARCHAR(200)  NULL,
+    comentario         NVARCHAR(MAX)  NULL,
+    fecha_resena       DATETIME2      NOT NULL,
+    correo_cliente     NVARCHAR(200)  NULL,      -- simulado, para el chat
+    estado             VARCHAR(20)    NOT NULL DEFAULT 'sin_respuesta',
+        -- sin_respuesta / en_contacto / cerrada
+    tipo_respuesta     VARCHAR(20)    NULL,       -- comentario / accion
+    respuesta          NVARCHAR(1000) NULL,
+    fecha_notificacion DATETIME2      NULL,       -- la llena Power Automate
+    fecha_respuesta    DATETIME2      NULL,
+    fecha_cierre       DATETIME2      NULL,
+    CONSTRAINT uq_resena UNIQUE (review_id, order_id, seller_id),
+    CONSTRAINT ck_estado CHECK (estado IN ('sin_respuesta','en_contacto','cerrada')),
+    CONSTRAINT ck_tipo   CHECK (tipo_respuesta IS NULL OR tipo_respuesta IN ('comentario','accion'))
+);
+
+-- Mensajes del chat vendedor <-> cliente
+CREATE TABLE dbo.interacciones (
+    id             INT IDENTITY(1,1) PRIMARY KEY,
+    seguimiento_id INT            NOT NULL
+        REFERENCES dbo.seguimiento_resenas(id),
+    remitente      VARCHAR(10)    NOT NULL,       -- vendedor / cliente
+    mensaje        NVARCHAR(MAX)  NOT NULL,
+    fecha          DATETIME2      NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT ck_remitente CHECK (remitente IN ('vendedor','cliente'))
+);
+
+CREATE INDEX ix_seg_seller_estado ON dbo.seguimiento_resenas (seller_id, estado);
+CREATE INDEX ix_int_seguimiento   ON dbo.interacciones (seguimiento_id, fecha);
+
+
+/* ---------------------------------------------------------------------
+   2. Carga desde gold
+   Antes: con una actividad Copy del pipeline, copia del Lakehouse a esta
+   base tres tablas de staging (copia completa, sin filtro):
+     order_reviews -> dbo.stg_order_reviews
+     order_items   -> dbo.stg_order_items
+     products      -> dbo.stg_products
+   --------------------------------------------------------------------- */
+
+INSERT INTO dbo.seguimiento_resenas
+    (review_id, order_id, seller_id, categoria_producto,
+     calificacion, titulo, comentario, fecha_resena)
+SELECT
+    r.review_id,
+    r.order_id,
+    v.seller_id,
+    v.categoria_producto,
+    r.review_score,
+    r.review_comment_title,
+    r.review_comment_message,
+    r.review_creation_date
+FROM dbo.stg_order_reviews AS r
+JOIN (
+    -- un pedido puede tener varias líneas del mismo vendedor
+    SELECT i.order_id, i.seller_id, MAX(p.category) AS categoria_producto
+    FROM dbo.stg_order_items AS i
+    LEFT JOIN dbo.stg_products AS p
+        ON p.product_id = i.product_id
+    GROUP BY i.order_id, i.seller_id
+) AS v
+    ON v.order_id = r.order_id
+WHERE r.review_score <= 2;
+
+-- Revisión rápida
+SELECT COUNT(*) AS filas, COUNT(DISTINCT seller_id) AS vendedores
+FROM dbo.seguimiento_resenas;
+
+
+/* ---------------------------------------------------------------------
+   3. Vendedores para la demo: los 5 con más malas reseñas
+   --------------------------------------------------------------------- */
+
+SELECT TOP 5 seller_id, COUNT(*) AS malas_resenas
+FROM dbo.seguimiento_resenas
+GROUP BY seller_id
+ORDER BY malas_resenas DESC;
+
+-- Resultado: 345, 319, 259, 253 y 200 malas reseñas (1,376 en total).
+-- Correos: alias con "+" de una sola cuenta de Gmail; todos llegan al mismo buzón.
+-- Cambia <tu_cuenta> por tu usuario de Gmail.
+INSERT INTO dbo.vendedor_contacto (seller_id, nombre, correo) VALUES
+    ('4a3ca9315b744ce9f8e9374361493884', N'Vendedor 1', N'<tu_cuenta>+vendedor1@gmail.com'),
+    ('6560211a19b47992c3666cc44a7e94c0', N'Vendedor 2', N'<tu_cuenta>+vendedor2@gmail.com'),
+    ('cc419e0650a3c5ba77189a1882b7556a', N'Vendedor 3', N'<tu_cuenta>+vendedor3@gmail.com'),
+    ('7c67e1448b00f6e969d365cea6b010ab', N'Vendedor 4', N'<tu_cuenta>+vendedor4@gmail.com'),
+    ('1f50f920176fa81dab994f9023523100', N'Vendedor 5', N'<tu_cuenta>+vendedor5@gmail.com');
+
+-- Cliente simulado: todas las reseñas usan el mismo alias
+UPDATE dbo.seguimiento_resenas
+SET correo_cliente = N'<tu_cuenta>+cliente@gmail.com';
+
+-- Comprobación
+SELECT * FROM dbo.vendedor_contacto;
+SELECT TOP 5 id, seller_id, correo_cliente FROM dbo.seguimiento_resenas;
+
+

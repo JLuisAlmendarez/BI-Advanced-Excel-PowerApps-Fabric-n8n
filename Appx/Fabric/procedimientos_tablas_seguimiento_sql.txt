@@ -1,0 +1,105 @@
+
+/* ---------------------------------------------------------------------
+   1. Avisos pendientes: una fila por vendedor con reseñas sin avisar.
+      Incluye el total y una lista HTML con las 10 más recientes,
+      lista para pegar en el cuerpo del correo.
+   --------------------------------------------------------------------- */
+CREATE OR ALTER PROCEDURE dbo.sp_avisos_pendientes
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    WITH pendientes AS (
+        SELECT
+            s.id, s.seller_id, s.calificacion, s.categoria_producto,
+            s.comentario, s.fecha_resena,
+            ROW_NUMBER() OVER (PARTITION BY s.seller_id
+                               ORDER BY s.fecha_resena DESC) AS rn,
+            COUNT(*)     OVER (PARTITION BY s.seller_id)      AS total
+        FROM dbo.seguimiento_resenas AS s
+        WHERE s.estado = 'sin_respuesta'
+          AND s.fecha_notificacion IS NULL
+    )
+    SELECT
+        c.seller_id,
+        c.nombre,
+        c.correo,
+        MAX(p.total) AS total_pendientes,
+        STRING_AGG(
+            CONVERT(NVARCHAR(MAX), CONCAT(
+                N'<li><b>Queja #', p.id, N'</b> · ', p.calificacion, N'★ · ',
+                COALESCE(p.categoria_producto, N'sin categoría'), N'<br>',
+                COALESCE(NULLIF(LTRIM(LEFT(p.comentario, 160)), N''), N'(sin comentario)'),
+                N'</li>')),
+            N'') WITHIN GROUP (ORDER BY p.fecha_resena DESC) AS lista_html
+    FROM pendientes AS p
+    JOIN dbo.vendedor_contacto AS c
+        ON c.seller_id = p.seller_id
+    WHERE p.rn <= 10
+    GROUP BY c.seller_id, c.nombre, c.correo;
+END;
+GO
+
+/* ---------------------------------------------------------------------
+   2. Marcar como avisadas las reseñas de un vendedor
+      (Power Automate lo llama después de mandar su correo).
+   --------------------------------------------------------------------- */
+CREATE OR ALTER PROCEDURE dbo.sp_marcar_notificadas
+    @seller_id VARCHAR(32)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE dbo.seguimiento_resenas
+    SET fecha_notificacion = SYSUTCDATETIME()
+    WHERE seller_id = @seller_id
+      AND estado = 'sin_respuesta'
+      AND fecha_notificacion IS NULL;
+END;
+GO
+
+/* ---------------------------------------------------------------------
+   3. Guardar la respuesta de un cliente en el chat
+      (Power Automate lo llama cuando llega un correo "[Queja #123]").
+   --------------------------------------------------------------------- */
+CREATE OR ALTER PROCEDURE dbo.sp_guardar_respuesta_cliente
+    @seguimiento_id INT,
+    @mensaje        NVARCHAR(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (SELECT 1 FROM dbo.seguimiento_resenas
+               WHERE id = @seguimiento_id AND estado <> 'cerrada')
+        INSERT INTO dbo.interacciones (seguimiento_id, remitente, mensaje)
+        VALUES (@seguimiento_id, 'cliente', @mensaje);
+END;
+GO
+
+/* ---------------------------------------------------------------------
+   Prueba: debe devolver 5 filas, una por vendedor de la demo
+   --------------------------------------------------------------------- */
+EXEC dbo.sp_avisos_pendientes;
+
+
+/* ---------------------------------------------------------------------
+   Consultas útiles durante las pruebas
+   --------------------------------------------------------------------- */
+
+-- Ver qué quejas ya se avisaron (las llena el flujo "Aviso a vendedores")
+SELECT seller_id, COUNT(*) AS avisadas, MAX(fecha_notificacion) AS ultimo_aviso
+FROM dbo.seguimiento_resenas
+WHERE fecha_notificacion IS NOT NULL
+GROUP BY seller_id;
+
+-- Volver a probar el aviso desde cero (reenvía los 5 correos)
+-- UPDATE dbo.seguimiento_resenas SET fecha_notificacion = NULL;
+
+-- Ver los mensajes del chat (los llena el flujo "Respuesta del cliente")
+SELECT i.*, s.seller_id, s.estado
+FROM dbo.interacciones AS i
+JOIN dbo.seguimiento_resenas AS s ON s.id = i.seguimiento_id
+ORDER BY i.fecha DESC;
+
+-- Borrar mensajes de prueba
+-- DELETE FROM dbo.interacciones;
