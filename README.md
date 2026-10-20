@@ -47,15 +47,15 @@ El proyecto avanza en cuatro partes: primero se **explora** el problema en Excel
 - **Power Pivot:** modelo de datos relacionado y medidas básicas (ventas, pedidos, calificación promedio).
 - **Tablero prototipo:** KPIs, segmentadores por fecha y estado, y un gráfico por cada pregunta de negocio.
 
-![Prototipo en Excel](Appx/Excel/imgs/Dashbord%20Excel%20Prototype.png)
+<p align="center"><img src="Appx/Excel/imgs/Dashbord%20Excel%20Prototype.png" alt="Prototipo en Excel" width="800"></p>
 
 <details>
 <summary>Más capturas de Power Query</summary>
 
-![Esquema de Power Query](Appx/Excel/imgs/Excel%20Power%20Query%20Schema.png)
-![Secuencia de Power Query 1](Appx/Excel/imgs/Excel%20Power%20Query%20Sequence%2001.png)
-![Secuencia de Power Query 2](Appx/Excel/imgs/Excel%20Power%20Query%20Sequence%2002.png)
-![Tabla dinámica](Appx/Excel/imgs/Other%20dynamic%20Table.png)
+<p align="center"><img src="Appx/Excel/imgs/Excel%20Power%20Query%20Schema.png" alt="Esquema de Power Query" width="800"></p>
+<p align="center"><img src="Appx/Excel/imgs/Excel%20Power%20Query%20Sequence%2001.png" alt="Secuencia de Power Query 1" width="800"></p>
+<p align="center"><img src="Appx/Excel/imgs/Excel%20Power%20Query%20Sequence%2002.png" alt="Secuencia de Power Query 2" width="800"></p>
+<p align="center"><img src="Appx/Excel/imgs/Other%20dynamic%20Table.png" alt="Tabla dinámica" width="800"></p>
 
 </details>
 
@@ -72,28 +72,28 @@ El proyecto avanza en cuatro partes: primero se **explora** el problema en Excel
 - **Silver:** limpieza con **Dataflows Gen2**, reutilizando la misma lógica de Power Query del prototipo en Excel.
 - **Gold:** tablas Delta listas para el modelo, incluida una tabla `calendar`.
 
-![Tablas bronze](Appx/Fabric/imgs/Lakehouse%20Raw%20Tables%20(Bronze).png)
-![Tablas gold](Appx/Fabric/imgs/Lakehouse%20Processed%20Tables%20(Gold).png)
+<p align="center"><img src="Appx/Fabric/imgs/Lakehouse%20Raw%20Tables%20(Bronze).png" alt="Tablas bronze" width="800"></p>
+<p align="center"><img src="Appx/Fabric/imgs/Lakehouse%20Processed%20Tables%20(Gold).png" alt="Tablas gold" width="800"></p>
 
 **Modelo semántico**
 - **Modo:** Direct Lake sobre la capa gold.
 - **Relaciones:** varios a uno con filtro de dirección única. Las medidas que necesitan filtrar "hacia arriba" usan `CROSSFILTER` solo dentro de su cálculo.
 - **Medidas DAX:** ventas, ticket promedio, clientes únicos (con `customer_unique_id`), % de entregas tarde, días de entrega, calificación promedio y, en la parte 4, **Ventas USD**.
 
-![Modelo semántico](Appx/Fabric/imgs/Semantic%20Model%20Schema.png)
+<p align="center"><img src="Appx/Fabric/imgs/Semantic%20Model%20Schema.png" alt="Modelo semántico" width="800"></p>
 
 **Reporte ejecutivo**
 
-![Reporte en Power BI](Appx/Fabric/imgs/Dashboard%20Power%20BI.png)
+<p align="center"><img src="Appx/Fabric/imgs/Dashboard%20Power%20BI.png" alt="Reporte en Power BI" width="800"></p>
 
 <details>
 <summary>Más capturas del Dataflow</summary>
 
-![Ejecución del Dataflow (silver)](Appx/Fabric/imgs/DataFlow%20Execution%20(Silver).png)
-![Esquema de Power Query en Fabric](Appx/Fabric/imgs/Fabric%20Power%20Query%20Schema.png)
-![Secuencia 1](Appx/Fabric/imgs/Fabric%20Power%20Query%20Sequence%2001.png)
-![Secuencia 2](Appx/Fabric/imgs/Fabric%20Power%20Query%20Sequence%2002.png)
-![Secuencia 3](Appx/Fabric/imgs/Fabric%20Power%20Query%20Sequence%2003.png)
+<p align="center"><img src="Appx/Fabric/imgs/DataFlow%20Execution%20(Silver).png" alt="Ejecución del Dataflow (silver)" width="800"></p>
+<p align="center"><img src="Appx/Fabric/imgs/Fabric%20Power%20Query%20Schema.png" alt="Esquema de Power Query en Fabric" width="800"></p>
+<p align="center"><img src="Appx/Fabric/imgs/Fabric%20Power%20Query%20Sequence%2001.png" alt="Secuencia 1" width="800"></p>
+<p align="center"><img src="Appx/Fabric/imgs/Fabric%20Power%20Query%20Sequence%2002.png" alt="Secuencia 2" width="800"></p>
+<p align="center"><img src="Appx/Fabric/imgs/Fabric%20Power%20Query%20Sequence%2003.png" alt="Secuencia 3" width="800"></p>
 
 </details>
 
@@ -119,8 +119,8 @@ Una queja pasa por estos estados: `sin_respuesta` → `en_contacto` → `cerrada
 
 Los datos se cargan con un **Copy job** del Lakehouse a tablas de staging, y luego se filtran y relacionan en T-SQL. También hay **procedimientos almacenados**, para que Power Automate no tenga que armar consultas.
 
-![Copia del Lakehouse a SQL](Appx/Fabric/imgs/copia_tablas_lakehouse_a_sql.png)
-![Tablas y procedimientos](Appx/Fabric/imgs/tablas_y_procedimientos_seguimientos.png)
+<p align="center"><img src="Appx/Fabric/imgs/copia_tablas_lakehouse_a_sql.png" alt="Copia del Lakehouse a SQL" width="800"></p>
+<p align="center"><img src="Appx/Fabric/imgs/tablas_y_procedimientos_seguimientos.png" alt="Tablas y procedimientos" width="800"></p>
 
 > **Datos simulados:** Olist no trae correos de vendedores ni de clientes. Se usaron los 5 vendedores con más malas reseñas (1,376 quejas en total) y alias con `+` de una sola cuenta de correo, como `cuenta+vendedor1@gmail.com`.
 
@@ -133,15 +133,15 @@ Los datos se cargan con un **Copy job** del Lakehouse a tablas de staging, y lue
 | **Aviso a vendedores** | Programado | Manda un correo por vendedor con sus quejas pendientes y la liga a la app, y las marca como avisadas |
 | **Respuesta del cliente** | Correo entrante con `[Queja #` en el asunto | Saca el número de queja del asunto y guarda la respuesta en `interacciones` |
 
-![Flujos de Power Automate](Appx/Automate/imgs/lista_flujos_automate.png)
-![Aviso a vendedores](Appx/Automate/imgs/avisos_a_vendedores.png)
-![Respuestas del cliente](Appx/Automate/imgs/respuestas_del_cliente.png)
+<p align="center"><img src="Appx/Automate/imgs/lista_flujos_automate.png" alt="Flujos de Power Automate" width="800"></p>
+<p align="center"><img src="Appx/Automate/imgs/avisos_a_vendedores.png" alt="Aviso a vendedores" width="800"></p>
+<p align="center"><img src="Appx/Automate/imgs/respuestas_del_cliente.png" alt="Respuestas del cliente" width="800"></p>
 
 <details>
 <summary>Más capturas</summary>
 
-![De la base al correo del vendedor](Appx/Automate/imgs/db_seguimiento_a_correo_vendedor.png)
-![Del correo a la tabla de interacciones](Appx/Automate/imgs/correo_a_db_interacciones.png)
+<p align="center"><img src="Appx/Automate/imgs/db_seguimiento_a_correo_vendedor.png" alt="De la base al correo del vendedor" width="800"></p>
+<p align="center"><img src="Appx/Automate/imgs/correo_a_db_interacciones.png" alt="Del correo a la tabla de interacciones" width="800"></p>
 
 </details>
 
@@ -156,22 +156,22 @@ Canvas app con tres pantallas:
 
 | Lista de quejas | Responder | Chat |
 |---|---|---|
-| ![Lista sin respuesta](Appx/PowerApps/lista_sin_respuesta.png) | ![Detalle](Appx/PowerApps/detalle_responder.png) | ![Chat con respuesta del cliente](Appx/PowerApps/chat_respuesta_cliente.png) |
+| <img src="Appx/PowerApps/lista_sin_respuesta.png" alt="Lista sin respuesta" height="300"> | <img src="Appx/PowerApps/detalle_responder.png" alt="Detalle" height="300"> | <img src="Appx/PowerApps/chat_respuesta_cliente.png" alt="Chat con respuesta del cliente" height="300"> |
 
 **El ciclo completo, visto desde los tres lados:**
 
 | El cliente (Gmail) | La bandeja que lee Power Automate | La base de datos |
 |---|---|---|
-| ![Gmail](Appx/PowerApps/gmail_conversacion_cliente.png) | ![Outlook](Appx/PowerApps/outlook_respuesta_cliente.png) | ![Conversación en SQL](Appx/PowerApps/sql_conversacion_queja.png) |
+| <img src="Appx/PowerApps/gmail_conversacion_cliente.png" alt="Gmail" height="300"> | <img src="Appx/PowerApps/outlook_respuesta_cliente.png" alt="Outlook" height="300"> | <img src="Appx/PowerApps/sql_conversacion_queja.png" alt="Conversación en SQL" height="300"> |
 
 <details>
 <summary>Más capturas</summary>
 
-![Primer mensaje del vendedor](Appx/PowerApps/chat_mensaje_vendedor.png)
-![Lista en contacto](Appx/PowerApps/lista_en_contacto.png)
-![Lista cerrada](Appx/PowerApps/lista_cerrada.png)
-![Resumen por vendedor](Appx/PowerApps/sql_resumen_por_vendedor.png)
-![Quejas atendidas](Appx/PowerApps/sql_quejas_atendidas.png)
+<p align="center"><img src="Appx/PowerApps/chat_mensaje_vendedor.png" alt="Primer mensaje del vendedor" width="800"></p>
+<p align="center"><img src="Appx/PowerApps/lista_en_contacto.png" alt="Lista en contacto" width="800"></p>
+<p align="center"><img src="Appx/PowerApps/lista_cerrada.png" alt="Lista cerrada" width="800"></p>
+<p align="center"><img src="Appx/PowerApps/sql_resumen_por_vendedor.png" alt="Resumen por vendedor" width="800"></p>
+<p align="center"><img src="Appx/PowerApps/sql_quejas_atendidas.png" alt="Quejas atendidas" width="800"></p>
 
 </details>
 
@@ -196,17 +196,17 @@ API del Banco Central (11:00) → n8n → Google Sheets → notebook (12:00) →
 
 | Carga histórica | Carga diaria |
 |---|---|
-| ![n8n carga histórica](Appx/n8n/Program1/imgs/n8n_carga_historica.png) | ![n8n diario](Appx/n8n/Program1/imgs/n8n_diario.png) |
+| <img src="Appx/n8n/Program1/imgs/n8n_carga_historica.png" alt="n8n carga histórica" height="300"> | <img src="Appx/n8n/Program1/imgs/n8n_diario.png" alt="n8n diario" height="300"> |
 
-![Ventas en BRL y USD por año](Appx/n8n/Program1/imgs/dax_ventas_usd.png)
+<p align="center"><img src="Appx/n8n/Program1/imgs/dax_ventas_usd.png" alt="Ventas en BRL y USD por año" width="800"></p>
 
 <details>
 <summary>Más capturas</summary>
 
-![Hoja de Google Sheets](Appx/n8n/Program1/imgs/sheets_tipo_cambio.png)
-![Notebook](Appx/n8n/Program1/imgs/fabric_notebook.png)
-![Programación del notebook](Appx/n8n/Program1/imgs/notebook_programacion.png)
-![Modelo con tipo_cambio](Appx/n8n/Program1/imgs/modelo_con_tipo_cambio.png)
+<p align="center"><img src="Appx/n8n/Program1/imgs/sheets_tipo_cambio.png" alt="Hoja de Google Sheets" width="800"></p>
+<p align="center"><img src="Appx/n8n/Program1/imgs/fabric_notebook.png" alt="Notebook" width="800"></p>
+<p align="center"><img src="Appx/n8n/Program1/imgs/notebook_programacion.png" alt="Programación del notebook" width="800"></p>
+<p align="center"><img src="Appx/n8n/Program1/imgs/modelo_con_tipo_cambio.png" alt="Modelo con tipo_cambio" width="800"></p>
 
 </details>
 
@@ -220,19 +220,19 @@ API del Banco Central (11:00) → n8n → Google Sheets → notebook (12:00) →
 
 **1. El cubo de KPIs.** El notebook no manda porcentajes ya calculados, sino sus **componentes** (ventas, órdenes, entregas tarde, entregas totales, suma de calificaciones, reseñas…), en dos tablas: *estado × mes* y *categoría × mes*. Así n8n puede recalcular cualquier KPI para cualquier combinación de filtros sin errores. Promediar porcentajes ya calculados daría resultados incorrectos.
 
-![Notebook nb_kpis](Appx/n8n/Program2/imgs/fabric_nb_kpis.png)
+Código y salida del notebook: [`nb_kpis.html`](Appx/n8n/Program2/nb_kpis.html)
 
 **2. Siempre al día.** El pipeline `pl_diario` corre `nb_tipo_cambio` y luego `nb_kpis`, así que el cubo nunca es más viejo que el modelo. Cada respuesta incluye la fecha de corte de los datos.
 
 | Programación | Ejecución |
 |---|---|
-| ![Programación del pipeline](Appx/n8n/Program2/imgs/fabric_pl_diario_programacion.png) | ![Ejecución del pipeline](Appx/n8n/Program2/imgs/fabric_pl_diario_ejecucion.png) |
+| <img src="Appx/n8n/Program2/imgs/fabric_pl_diario_programacion.png" alt="Programación del pipeline" height="300"> | <img src="Appx/n8n/Program2/imgs/fabric_pl_diario_ejecucion.png" alt="Ejecución del pipeline" height="300"> |
 
-![Recepción del cubo en n8n](Appx/n8n/Program2/imgs/n8n_recepcion_cubo.png)
+<p align="center"><img src="Appx/n8n/Program2/imgs/n8n_recepcion_cubo.png" alt="Recepción del cubo en n8n" width="800"></p>
 
 **3. La consulta.** El usuario llena un formulario: estado, año, categoría, KPIs, tipo de análisis (resumen ejecutivo, comparación contra el año anterior o detección de problemas), una pregunta libre y su correo. n8n filtra el cubo, recalcula los KPIs elegidos y arma el contexto para Claude, junto con una liga al reporte de Power BI **ya filtrado**.
 
-![Workflow de consulta](Appx/n8n/Program2/imgs/n8n_analista_consulta.png)
+<p align="center"><img src="Appx/n8n/Program2/imgs/n8n_analista_consulta.png" alt="Workflow de consulta" width="800"></p>
 
 > El nodo del modelo aparece desactivado en la captura y en el JSON porque se retiró la API key antes de exportar.
 
@@ -240,7 +240,7 @@ API del Banco Central (11:00) → n8n → Google Sheets → notebook (12:00) →
 
 | Formulario | Respuesta por correo |
 |---|---|
-| ![Formulario](Appx/n8n/Program2/imgs/formulario_analista.png) | ![Correo con el análisis](Appx/n8n/Program2/imgs/correo_analisis_claude.png) |
+| <img src="Appx/n8n/Program2/imgs/formulario_analista.png" alt="Formulario" height="300"> | <img src="Appx/n8n/Program2/imgs/correo_analisis_claude.png" alt="Correo con el análisis" height="300"> |
 
 ⚙️ [`Analista_recepcion_cubo.json`](Appx/n8n/Program2/Analista_recepcion_cubo.json) · ⚙️ [`Analista_consulta.json`](Appx/n8n/Program2/Analista_consulta.json) · 📓 [`nb_kpis.html`](Appx/n8n/Program2/nb_kpis.html)
 
