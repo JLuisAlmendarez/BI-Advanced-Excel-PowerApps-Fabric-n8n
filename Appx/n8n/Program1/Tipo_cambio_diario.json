@@ -1,0 +1,183 @@
+{
+  "name": "Tipo_cambio_diario",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=   https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarDia(dataCotacao=@dataCotacao)?@dataCotacao='{{ $now.setZone('America/Sao_Paulo').toFormat('MM-dd-yyyy') }}'&$format=json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -64,
+        -32
+      ],
+      "id": "3c0bf76c-6d75-403e-a5e8-75fdc1021a76",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const registros = $input.first().json.value || [];\nconst porDia = {};\nfor (const r of registros) {\n  const fecha = r.dataHoraCotacao.slice(0, 10);\n  porDia[fecha] = { fecha, compra: r.cotacaoCompra, venta: r.cotacaoVenda };\n}\nreturn Object.values(porDia).map(x => ({ json: x }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        -32
+      ],
+      "id": "891cdd6a-ec89-4685-9e07-a7e30b256fbe",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "14A6WlfG-nHbu7IlyuPxch885QZ6emdqhjqzpz3LjZMk",
+          "mode": "list",
+          "cachedResultName": "tipo_cambio",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14A6WlfG-nHbu7IlyuPxch885QZ6emdqhjqzpz3LjZMk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Hoja 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14A6WlfG-nHbu7IlyuPxch885QZ6emdqhjqzpz3LjZMk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "fecha"
+          ],
+          "schema": [
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "compra",
+              "displayName": "compra",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "venta",
+              "displayName": "venta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        -32
+      ],
+      "id": "18d017bf-f230-4205-ab1c-c0d2921a7457",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "v9iWcKQCYeB8nAp3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1,
+                2,
+                3,
+                4,
+                5
+              ],
+              "triggerAtHour": 11
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -336,
+        -32
+      ],
+      "id": "a97e4c42-e24f-4e8d-888c-d41a530bb364",
+      "name": "Schedule Trigger"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "7eb19033-1b60-45ad-8232-c1931e59026c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fdddbd12ae7e41ca7c61b6c1363ffcb5cea948d3d133ead489af80315c2a8924"
+  },
+  "nodeGroups": [],
+  "id": "5eO0p0vhu9d6ggky",
+  "tags": []
+}

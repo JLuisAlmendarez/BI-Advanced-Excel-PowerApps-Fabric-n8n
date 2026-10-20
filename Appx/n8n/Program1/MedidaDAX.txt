@@ -1,0 +1,12 @@
+Ventas USD =
+SUMX(
+    VALUES('calendar'[date]),
+    VAR d = 'calendar'[date]
+    VAR tasa =
+        CALCULATE(
+            LASTNONBLANKVALUE('tipo_cambio'[fecha], MAX('tipo_cambio'[venta])),
+            REMOVEFILTERS('calendar'),
+            'tipo_cambio'[fecha] <= d
+        )
+    RETURN DIVIDE([Ventas], tasa)
+)

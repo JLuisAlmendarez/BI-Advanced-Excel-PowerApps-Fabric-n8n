@@ -1,0 +1,167 @@
+{
+  "name": "Tipo_cambio_carga_historica",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        -32
+      ],
+      "id": "1f611021-4845-4adc-966b-2fd78c0a1ff1",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarPeriodo(dataInicial=@dataInicial,dataFinalCotacao=@dataFinalCotacao)?@dataInicial='01-01-2016'&@dataFinalCotacao='12-31-2018'&$format=json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -64,
+        -32
+      ],
+      "id": "9381e3c3-d84e-4b78-82b0-74bd5776d757",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const registros = $input.first().json.value || [];\nconst porDia = {};\nfor (const r of registros) {\n  const fecha = r.dataHoraCotacao.slice(0, 10);\n  porDia[fecha] = { fecha, compra: r.cotacaoCompra, venta: r.cotacaoVenda };\n}\nreturn Object.values(porDia).map(x => ({ json: x }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        -32
+      ],
+      "id": "b3ea1e81-9715-407a-8d38-6645a0c4b006",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "14A6WlfG-nHbu7IlyuPxch885QZ6emdqhjqzpz3LjZMk",
+          "mode": "list",
+          "cachedResultName": "tipo_cambio",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14A6WlfG-nHbu7IlyuPxch885QZ6emdqhjqzpz3LjZMk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Hoja 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14A6WlfG-nHbu7IlyuPxch885QZ6emdqhjqzpz3LjZMk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "fecha"
+          ],
+          "schema": [
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "compra",
+              "displayName": "compra",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "venta",
+              "displayName": "venta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        -32
+      ],
+      "id": "dc307bb7-f741-4621-a67b-d9d8ac3b097b",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "v9iWcKQCYeB8nAp3",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "fb1c4802-cdf4-4623-9341-29e67df6f93a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fdddbd12ae7e41ca7c61b6c1363ffcb5cea948d3d133ead489af80315c2a8924"
+  },
+  "nodeGroups": [],
+  "id": "8fFduCcc3g8YGoov",
+  "tags": []
+}
