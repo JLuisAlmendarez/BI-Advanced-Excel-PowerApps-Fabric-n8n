@@ -86,13 +86,12 @@ flowchart LR
 **Goal:** understand the data and prototype the dashboard before building the cloud solution.
 
 - **Power Query:** cleaning of the 9 tables — date types fixed, duplicates removed, and inconsistent dates flagged (e.g. a delivery dated before the purchase). Calculated columns: `delivery_days`, `delay_days`, `is_late_delivery`.
-- **Power Pivot:** related data model and base measures (sales, orders, average rating).
 - **Prototype dashboard:** KPIs, date and state slicers, one chart per business question.
 
 <p align="center"><img src="Appx/Excel/imgs/Dashbord%20Excel%20Prototype.png" alt="Excel prototype dashboard" width="801"></p>
 
 <details>
-<summary>Power Query screenshots</summary>
+<summary>Power Query & Dynamic Tables screenshots</summary>
 
 <p align="center"><img src="Appx/Excel/imgs/Excel%20Power%20Query%20Schema.png" alt="Power Query schema" width="304"></p>
 <p align="center"><img src="Appx/Excel/imgs/Excel%20Power%20Query%20Sequence%2001.png" alt="Power Query sequence 1" width="507"></p>
