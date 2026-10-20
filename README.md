@@ -154,15 +154,11 @@ Canvas app con tres pantallas:
 - **Detalle:** la queja completa y el botón para responder al cliente.
 - **Chat:** la conversación por correo, vista como un chat, y el botón para cerrar la queja.
 
-| Lista de quejas | Responder | Chat |
-|---|---|---|
-| <img src="Appx/PowerApps/lista_sin_respuesta.png" alt="Lista sin respuesta" width="300"> | <img src="Appx/PowerApps/detalle_responder.png" alt="Detalle" width="300"> | <img src="Appx/PowerApps/chat_respuesta_cliente.png" alt="Chat con respuesta del cliente" width="300"> |
+<p align="center"><img src="Appx/PowerApps/lista_sin_respuesta.png" alt="Lista sin respuesta" width="280"> <img src="Appx/PowerApps/detalle_responder.png" alt="Detalle" width="280"> <img src="Appx/PowerApps/chat_respuesta_cliente.png" alt="Chat con respuesta del cliente" width="280"></p>
 
 **El ciclo completo, visto desde los tres lados:**
 
-| El cliente (Gmail) | La bandeja que lee Power Automate | La base de datos |
-|---|---|---|
-| <img src="Appx/PowerApps/gmail_conversacion_cliente.png" alt="Gmail" width="318"> | <img src="Appx/PowerApps/outlook_respuesta_cliente.png" alt="Outlook" width="318"> | <img src="Appx/PowerApps/sql_conversacion_queja.png" alt="Conversación en SQL" width="264"> |
+<p align="center"><img src="Appx/PowerApps/gmail_conversacion_cliente.png" alt="Gmail" width="297"> <img src="Appx/PowerApps/outlook_respuesta_cliente.png" alt="Outlook" width="297"> <img src="Appx/PowerApps/sql_conversacion_queja.png" alt="Conversación en SQL" width="246"></p>
 
 <details>
 <summary>Más capturas</summary>
@@ -194,9 +190,7 @@ API del Banco Central (11:00) → n8n → Google Sheets → notebook (12:00) →
 - **Por qué pasa por un notebook:** un modelo en Direct Lake solo lee tablas de OneLake, así que el notebook `nb_tipo_cambio` copia la hoja al Lakehouse.
 - **Medida `Ventas USD`:** divide las ventas de cada día entre la tasa de ese día. En fines de semana y días festivos usa la tasa del último día hábil.
 
-| Carga histórica | Carga diaria |
-|---|---|
-| <img src="Appx/n8n/Program1/imgs/n8n_carga_historica.png" alt="n8n carga histórica" width="450"> | <img src="Appx/n8n/Program1/imgs/n8n_diario.png" alt="n8n diario" width="450"> |
+<p align="center"><img src="Appx/n8n/Program1/imgs/n8n_carga_historica.png" alt="n8n carga histórica" width="420"> <img src="Appx/n8n/Program1/imgs/n8n_diario.png" alt="n8n diario" width="420"></p>
 
 <p align="center"><img src="Appx/n8n/Program1/imgs/dax_ventas_usd.png" alt="Ventas en BRL y USD por año" width="900"></p>
 
@@ -224,9 +218,7 @@ Código y salida del notebook: [`nb_kpis.html`](Appx/n8n/Program2/nb_kpis.html)
 
 **2. Siempre al día.** El pipeline `pl_diario` corre `nb_tipo_cambio` y luego `nb_kpis`, así que el cubo nunca es más viejo que el modelo. Cada respuesta incluye la fecha de corte de los datos.
 
-| Programación | Ejecución |
-|---|---|
-| <img src="Appx/n8n/Program2/imgs/fabric_pl_diario_programacion.png" alt="Programación del pipeline" width="450"> | <img src="Appx/n8n/Program2/imgs/fabric_pl_diario_ejecucion.png" alt="Ejecución del pipeline" width="450"> |
+<p align="center"><img src="Appx/n8n/Program2/imgs/fabric_pl_diario_programacion.png" alt="Programación del pipeline" width="420"> <img src="Appx/n8n/Program2/imgs/fabric_pl_diario_ejecucion.png" alt="Ejecución del pipeline" width="420"></p>
 
 <p align="center"><img src="Appx/n8n/Program2/imgs/n8n_recepcion_cubo.png" alt="Recepción del cubo en n8n" width="900"></p>
 
@@ -238,9 +230,7 @@ Código y salida del notebook: [`nb_kpis.html`](Appx/n8n/Program2/nb_kpis.html)
 
 **4. La respuesta.** Claude recibe instrucciones de usar **solo** los datos del JSON y de no inventar causas ni cifras. En la prueba, la pregunta fue *"¿Por qué bajó la calificación en São Paulo?"*. Claude **contradijo la premisa**: la calificación anual de SP subió de 4.15 a 4.19. Luego señaló la caída real en febrero y marzo de 2018 y la relacionó con el aumento de entregas tarde.
 
-| Formulario | Respuesta por correo |
-|---|---|
-| <img src="Appx/n8n/Program2/imgs/formulario_analista.png" alt="Formulario" width="280"> | <img src="Appx/n8n/Program2/imgs/correo_analisis_claude.png" alt="Correo con el análisis" width="620"> |
+<p align="center"><img src="Appx/n8n/Program2/imgs/formulario_analista.png" alt="Formulario" width="260"> <img src="Appx/n8n/Program2/imgs/correo_analisis_claude.png" alt="Correo con el análisis" width="580"></p>
 
 ⚙️ [`Analista_recepcion_cubo.json`](Appx/n8n/Program2/Analista_recepcion_cubo.json) · ⚙️ [`Analista_consulta.json`](Appx/n8n/Program2/Analista_consulta.json) · 📓 [`nb_kpis.html`](Appx/n8n/Program2/nb_kpis.html)
 
