@@ -24,25 +24,7 @@ El proyecto avanza en cuatro partes: primero se **explora** el problema en Excel
 
 ---
 
-## Arquitectura
-
-```mermaid
-flowchart LR
-    K[Kaggle · 9 CSV] --> X[Excel<br/>prototipo]
-    K --> B[(Lakehouse<br/>bronze)]
-    B -->|Dataflow Gen2| S[(silver)] --> G[(gold)]
-    G --> M[Modelo semántico<br/>Direct Lake]
-    M --> R[Reporte Power BI]
-
-    G -->|Copy job| SQL[(SQL database<br/>seguimiento)]
-    SQL <--> PA[Power Automate<br/>avisos y correos]
-    SQL <--> APP[Power Apps<br/>portal del vendedor]
-
-    BCB[API Banco Central<br/>do Brasil] --> N1[n8n · tipo de cambio] --> GS[(Google Sheets)]
-    GS -->|notebook| G
-    M -->|notebook + Semantic Link| N2[n8n · cubo de KPIs]
-    N2 --> C[Claude<br/>analista] --> MAIL[Respuesta en pantalla<br/>y por correo]
-```
+## Herramientas
 
 | Herramienta | Rol en el proyecto |
 |---|---|
@@ -122,24 +104,6 @@ flowchart LR
 ## 3. Portal del vendedor: chat con el cliente
 
 **Objetivo:** pasar de *medir* las malas reseñas a *atenderlas*. Cada vez que un vendedor recibe una reseña de 1 o 2 estrellas, le llega un aviso automático y puede contactar al cliente desde una app.
-
-### Flujo
-
-```mermaid
-sequenceDiagram
-    participant DB as SQL database
-    participant PA as Power Automate
-    participant V as Vendedor (Power Apps)
-    participant C as Cliente (correo)
-
-    DB->>PA: Reseñas 1–2★ sin avisar
-    PA->>V: Correo con sus quejas y liga a la app
-    V->>C: Responde desde el chat de la app
-    Note over V,DB: El mensaje se guarda en interacciones
-    C->>PA: Contesta el correo [Queja #123]
-    PA->>DB: Guarda la respuesta en el chat
-    V->>DB: Cierra la queja
-```
 
 ### 3.1 Tablas de seguimiento (SQL database en Fabric)
 
@@ -253,16 +217,6 @@ API del Banco Central (11:00) → n8n → Google Sheets → notebook (12:00) →
 **El reto.** La idea original era que n8n consultara Power BI con su API REST, pero eso requiere registrar una aplicación en Microsoft Entra, y el tenant de la universidad lo tiene bloqueado.
 
 **La solución.** El que lee el modelo es un **notebook de Fabric**, que corre con la sesión del usuario y no necesita permisos extra. Usa **Semantic Link** (`sempy`) para ejecutar DAX contra el modelo semántico y le **empuja** los datos a n8n por un webhook protegido con una clave en el encabezado.
-
-```mermaid
-flowchart LR
-    subgraph Fabric
-      P[pl_diario · 12:00 L–V] --> T[nb_tipo_cambio] --> K[nb_kpis<br/>DAX con Semantic Link]
-    end
-    K -->|POST + X-Api-Key| W[n8n · recepción del cubo] --> S[(cubo_olist<br/>Google Sheets)]
-    F[Formulario] --> Q[n8n · consulta] 
-    S --> Q --> CL[Claude Sonnet] --> O[Pantalla + correo<br/>+ liga al reporte filtrado]
-```
 
 **1. El cubo de KPIs.** El notebook no manda porcentajes ya calculados, sino sus **componentes** (ventas, órdenes, entregas tarde, entregas totales, suma de calificaciones, reseñas…), en dos tablas: *estado × mes* y *categoría × mes*. Así n8n puede recalcular cualquier KPI para cualquier combinación de filtros sin errores. Promediar porcentajes ya calculados daría resultados incorrectos.
 
