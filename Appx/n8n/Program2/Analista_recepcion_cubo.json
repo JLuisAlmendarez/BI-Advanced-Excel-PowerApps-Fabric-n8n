@@ -1,0 +1,282 @@
+{
+  "name": "Analista_recepcion_cubo",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cubo-olist",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        32,
+        -48
+      ],
+      "id": "f244e2c0-824f-42a1-8fb8-834dac9e9f0e",
+      "name": "Webhook",
+      "webhookId": "43e833c6-5b99-4e27-933a-11121e890bde",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "tyuZ1RPWmn3Mfyis",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "clear",
+        "documentId": {
+          "__rl": true,
+          "value": "1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI",
+          "mode": "list",
+          "cachedResultName": "cubo_olist",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "estado_mes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI/edit#gid=0"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        272,
+        -112
+      ],
+      "id": "aaed2e56-2646-4e36-a54a-3823424cbed0",
+      "name": "Clear sheet",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "v9iWcKQCYeB8nAp3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "clear",
+        "documentId": {
+          "__rl": true,
+          "value": "1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI",
+          "mode": "list",
+          "cachedResultName": "cubo_olist",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 812253154,
+          "mode": "list",
+          "cachedResultName": "categoria_mes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI/edit#gid=812253154"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        272,
+        64
+      ],
+      "id": "4c2626b6-cb20-42c1-b9d1-991aef622b5f",
+      "name": "Clear sheet1",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "v9iWcKQCYeB8nAp3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $('Webhook').first().json.body;\nreturn b.estado_mes.map(r => ({ json: { ...r, fecha_corte: b.fecha_corte } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        -112
+      ],
+      "id": "907fd21e-8b61-46f2-970d-d741c877071f",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $('Webhook').first().json.body;\n   return b.categoria_mes.map(r => ({ json: { ...r, fecha_corte: b.fecha_corte } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        64
+      ],
+      "id": "794d7f44-25c3-4917-8215-e15c715b8b6a",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI",
+          "mode": "list",
+          "cachedResultName": "cubo_olist",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "estado_mes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        688,
+        -112
+      ],
+      "id": "d0c61b77-c75a-4ad2-8ee9-0da5bb1a9b7d",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "v9iWcKQCYeB8nAp3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI",
+          "mode": "list",
+          "cachedResultName": "cubo_olist",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 812253154,
+          "mode": "list",
+          "cachedResultName": "categoria_mes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI/edit#gid=812253154"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        688,
+        64
+      ],
+      "id": "9fa758d2-a71a-40ca-a0a3-fc41d6f9c27c",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "v9iWcKQCYeB8nAp3",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Clear sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Clear sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear sheet1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "5e80a0fa-6e63-4de4-9c8c-668bfad576e9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fdddbd12ae7e41ca7c61b6c1363ffcb5cea948d3d133ead489af80315c2a8924"
+  },
+  "nodeGroups": [],
+  "id": "Y4Z8X19hK2DQ69Ug",
+  "tags": []
+}

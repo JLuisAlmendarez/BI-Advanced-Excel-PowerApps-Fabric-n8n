@@ -1,0 +1,372 @@
+{
+  "name": "Analista_consulta",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Analista Olist",
+        "formDescription": "Elige filtros, KPIs y tipo de análisis. Claude te responde con los datos del modelo.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Estado"
+            },
+            {
+              "fieldLabel": "Año",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Todos"
+                  },
+                  {
+                    "option": "2016"
+                  },
+                  {
+                    "option": "2017"
+                  },
+                  {
+                    "option": "2018"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Categoría"
+            },
+            {
+              "fieldLabel": "KPIs",
+              "fieldType": "checkbox",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Ventas BRL"
+                  },
+                  {
+                    "option": "Ventas USD"
+                  },
+                  {
+                    "option": "Órdenes"
+                  },
+                  {
+                    "option": "Ticket promedio"
+                  },
+                  {
+                    "option": "% entregas tarde"
+                  },
+                  {
+                    "option": "Días de entrega"
+                  },
+                  {
+                    "option": "Calificación promedio"
+                  },
+                  {
+                    "option": "% reseñas negativas"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Tipo de análisis",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Resumen ejecutivo"
+                  },
+                  {
+                    "option": "Comparación contra el año anterior"
+                  },
+                  {
+                    "option": "Detección de problemas"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Pregunta",
+              "fieldType": "textarea"
+            },
+            {
+              "fieldLabel": "Correo",
+              "fieldType": "email"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -1120,
+        32
+      ],
+      "id": "db1a14e3-1598-4b78-9f90-9604291d5b49",
+      "name": "On form submission",
+      "webhookId": "d56168e2-6676-4aea-a84f-e6d9de1513d6"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI",
+          "mode": "list",
+          "cachedResultName": "cubo_olist",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "estado_mes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -896,
+        32
+      ],
+      "id": "34f04ebd-baf1-4971-87f0-af20e4f82f38",
+      "name": "Leer estado_mes",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "v9iWcKQCYeB8nAp3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI",
+          "mode": "list",
+          "cachedResultName": "cubo_olist",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 812253154,
+          "mode": "list",
+          "cachedResultName": "categoria_mes",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZJj3ywFbUmh76sbpoYuNeG_ZDJBMiriSYKGtqQABvjI/edit#gid=812253154"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -704,
+        32
+      ],
+      "id": "a1ff376f-a290-42eb-ade0-fbb5eb21051f",
+      "name": "Leer categoria_mes",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "v9iWcKQCYeB8nAp3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=   Tipo de análisis: {{ $json.tipo }}\n   Filtros: {{ JSON.stringify($json.filtros) }}\n   KPIs solicitados: {{ $json.kpis_solicitados.join(', ') }}\n   Pregunta del usuario: {{ $json.pregunta || '(ninguna)' }}\n   Nota: {{ $json.nota || '(ninguna)' }}\n   Fecha de corte de los datos: {{ $json.fecha_corte }}\n   Sin datos para el filtro: {{ $json.sin_datos }}\n\n   Datos (JSON):\n   {{ JSON.stringify($json.datos) }}",
+        "options": {
+          "systemMessage": "Eres un analista de datos senior\n\n- Usa markdown sencillo (encabezados ##, negritas y como máximo una tabla pequeña), máximo 250 palabras."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -288,
+        32
+      ],
+      "id": "4f8765ed-5c6f-4dfd-b6e1-652cb28b4030",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "",
+          "cachedResultUrl": ""
+        },
+        "options": {
+          "maxTokensToSample": 2048,
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        -288,
+        240
+      ],
+      "id": "a895c231-faf5-4570-b1f3-a04812d6f66f",
+      "name": "Anthropic Chat Model",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "mode": "markdownToHtml",
+        "markdown": "={{ $json.output }}",
+        "destinationKey": "html",
+        "options": {
+          "literalMidWordUnderscores": true,
+          "tables": true
+        }
+      },
+      "type": "n8n-nodes-base.markdown",
+      "typeVersion": 1,
+      "position": [
+        80,
+        32
+      ],
+      "id": "2d92a393-3f2d-44ed-96a9-7df2604a0d39",
+      "name": "Markdown"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Calcular KPIs').first().json.correo }}",
+        "subject": "=Analista AI · {{ $('Calcular KPIs').first().json.tipo }}",
+        "message": "=  <div style=\"font-family:Arial,sans-serif;max-width:680px;line-height:1.5\">   {{ $json.html.replaceAll('<table>','<table style=\"border-collapse:collapse;margin:8px 0\">').replaceAll('<th>','<th style=\"border:1px solid #ccc;padding:6px 10px;background:#f3f0fa;text-align:left\">').replaceAll('<td>','<td style=\"border:1px solid #ccc;padding:6px 10px\">') }}   <p><a href=\"{{ $('Calcular KPIs').first().json.liga_reporte }}\">Ver el reporte filtrado en Power BI →</a></p>   </div>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        304,
+        32
+      ],
+      "id": "c19ce90d-3d9a-46fe-8040-bdcb6b83a3eb",
+      "name": "Send a message",
+      "webhookId": "4800b389-13f6-43d2-8425-52490aa4c47a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "EsTUlrK4wR7N31kP",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const REPORT_URL = \"https://app.powerbi.com/groups/me/reports/204c2a7f-5c43-4658-a975-908fc8c580b8/436f3d97afe85a1c7217\";\n\nconst f = $('On form submission').first().json;\nconst est = $('Leer estado_mes').all().map(i => i.json);\nconst cat = $('Leer categoria_mes').all().map(i => i.json)\n  .map(r => ({ ...r, categoria: r.categoria || 'sin_categoria' }));\n\n// --- Lo que eligió el usuario ---\nconst estadoSel = String(f['Estado'] ?? '').trim().toUpperCase();\nconst anioSel = f['Año'] || 'Todos';\nconst catSel = String(f['Categoría'] ?? '').trim().toLowerCase();\nconst tipo = f['Tipo de análisis'];\nconst todosKpis = ['Ventas BRL','Ventas USD','Órdenes','Ticket promedio','% entregas tarde',\n                   'Días de entrega','Calificación promedio','% reseñas negativas'];\nlet kpisSel = f['KPIs'];\nif (!Array.isArray(kpisSel)) kpisSel = kpisSel ? [kpisSel] : [];\nif (!kpisSel.length) kpisSel = todosKpis;\n\n// --- Utilidades ---\nconst num = v => {\n  if (typeof v === 'number') return v;\n  if (v === null || v === undefined || v === '') return 0;\n  const n = Number(String(v).replace(',', '.'));\n  return isNaN(n) ? 0 : n;\n};\nconst camposEst = ['ventas','ventas_usd','flete','ordenes','entregadas','entregas_tarde',\n                   'dias_entrega_total','resenas','suma_calificacion','resenas_negativas'];\nconst camposCat = ['ventas','ventas_usd','articulos','ordenes','resenas',\n                   'suma_calificacion','resenas_negativas'];\n\nconst sumar = (rows, campos) => {\n  const t = Object.fromEntries(campos.map(c => [c, 0]));\n  for (const r of rows) for (const c of campos) t[c] += num(r[c]);\n  return t;\n};\nconst div = (a, b, d = 2) => (b ? +(a / b).toFixed(d) : null);\nconst kpis = t => ({\n  'Ventas BRL': +t.ventas.toFixed(2),\n  'Ventas USD': +t.ventas_usd.toFixed(2),\n  'Órdenes': t.ordenes,\n  'Ticket promedio': div(t.ventas, t.ordenes),\n  '% entregas tarde': t.entregadas !== undefined ? div(100 * t.entregas_tarde, t.entregadas, 1) : null,\n  'Días de entrega': t.entregadas !== undefined ? div(t.dias_entrega_total, t.entregadas, 1) : null,\n  'Calificación promedio': div(t.suma_calificacion, t.resenas),\n  '% reseñas negativas': div(100 * t.resenas_negativas, t.resenas, 1),\n});\nconst elegir = k => Object.fromEntries(Object.entries(k).filter(([n]) => kpisSel.includes(n)));\nconst agrupar = (rows, clave) => rows.reduce((g, r) => ((g[r[clave]] ??= []).push(r), g), {});\n\n// --- Base según filtros (categoría usa su propia tabla) ---\nconst usaCat = catSel !== '';\nconst campos = usaCat ? camposCat : camposEst;\nconst base = usaCat\n  ? cat.filter(r => String(r.categoria).toLowerCase() === catSel)\n  : est.filter(r => !estadoSel || String(r.estado).toUpperCase() === estadoSel);\n\nconst anios = anioSel === 'Todos' ? [2016, 2017, 2018] : [Number(anioSel)];\nconst periodo = base.filter(r => anios.includes(Number(r.year)));\n\n// --- Resultados ---\nconst resumen = elegir(kpis(sumar(periodo, campos)));\n\nconst por_anio = {};\nfor (const a of [2016, 2017, 2018]) {\n  const rows = base.filter(r => Number(r.year) === a);\n  if (rows.length) por_anio[a] = elegir(kpis(sumar(rows, campos)));\n}\n\nconst por_mes = Object.entries(agrupar(\n    periodo.map(r => ({ ...r, ym: `${r.year}-${String(r.month).padStart(2, '0')}` })), 'ym'))\n  .sort(([a], [b]) => a.localeCompare(b))\n  .filter(([, rows]) => sumar(rows, campos).ordenes >= 20)   // quita meses con muy pocas órdenes\n  .map(([ym, rows]) => ({ mes: ym, ...elegir(kpis(sumar(rows, campos))) }));\n\n// Problemas: rankings dentro del periodo (ignoran el filtro de estado/categoría)\nconst estPeriodo = est.filter(r => anios.includes(Number(r.year)));\nconst catPeriodo = cat.filter(r => anios.includes(Number(r.year)));\n\nconst estados_mas_tarde = Object.entries(agrupar(estPeriodo, 'estado'))\n  .map(([e, rows]) => { const t = sumar(rows, camposEst);\n    return { estado: e, entregadas: t.entregadas, pct_tarde: div(100 * t.entregas_tarde, t.entregadas, 1) }; })\n  .filter(x => x.entregadas >= 100)\n  .sort((a, b) => b.pct_tarde - a.pct_tarde)\n  .slice(0, 5);\n\nconst categorias_peor_calificadas = Object.entries(agrupar(catPeriodo, 'categoria'))\n  .map(([c, rows]) => { const t = sumar(rows, camposCat);\n    return { categoria: c || 'sin_categoria', resenas: t.resenas,\n             calificacion: div(t.suma_calificacion, t.resenas),\n             pct_negativas: div(100 * t.resenas_negativas, t.resenas, 1) }; })\n  .filter(x => x.resenas >= 50)\n  .sort((a, b) => a.calificacion - b.calificacion)\n  .slice(0, 5);\n\n// --- Liga al reporte filtrado ---\nconst filtrosUrl = [];\nif (!usaCat && estadoSel) filtrosUrl.push(`customers/customer_state eq '${estadoSel}'`);\nif (usaCat) filtrosUrl.push(`products/category eq '${catSel}'`);\nif (anioSel !== 'Todos') filtrosUrl.push(`calendar/year eq ${anioSel}`);\nconst liga_reporte = REPORT_URL +\n  (filtrosUrl.length ? '?filter=' + encodeURIComponent(filtrosUrl.join(' and ')) : '');\n\nreturn [{ json: {\n  filtros: {\n    estado: usaCat ? '(no aplica con categoría)' : (estadoSel || 'Todos'),\n    anio: anioSel,\n    categoria: catSel || 'Todas',\n  },\n  tipo,\n  pregunta: f['Pregunta'] || '',\n  correo: f['Correo'],\n  kpis_solicitados: kpisSel,\n  fecha_corte: est[0]?.fecha_corte || '',\n  nota: usaCat ? 'Con filtro de categoría no hay datos de entregas (% tarde, días) ni filtro por estado.' : '',\n  sin_datos: periodo.length === 0,\n  liga_reporte,\n  datos: { resumen, por_anio, por_mes, estados_mas_tarde, categorias_peor_calificadas },\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -512,
+        32
+      ],
+      "id": "206c6569-b91c-4100-b182-cf59e49447fc",
+      "name": "Calcular KPIs"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Leer estado_mes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer estado_mes": {
+      "main": [
+        [
+          {
+            "node": "Leer categoria_mes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer categoria_mes": {
+      "main": [
+        [
+          {
+            "node": "Calcular KPIs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Markdown": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular KPIs": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "746a6422-9af1-4285-b141-661c3ef5afb1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fdddbd12ae7e41ca7c61b6c1363ffcb5cea948d3d133ead489af80315c2a8924"
+  },
+  "nodeGroups": [],
+  "id": "uikTbUfYsjj4ESsg",
+  "tags": []
+}
